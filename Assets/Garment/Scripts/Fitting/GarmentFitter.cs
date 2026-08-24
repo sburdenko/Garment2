@@ -79,7 +79,9 @@ namespace Garment.Fitting
                     var hips = body.GetBone(BodyLandmark.Hips);
                     if (hips == null || (neck == null && shoulder == null)) return false;
                     topY = root.InverseTransformPoint((neck != null ? neck : shoulder).position).y;
-                    bottomY = root.InverseTransformPoint(hips.position).y;
+                    // A top's hem overlaps the waistband; ending it exactly at the hip line
+                    // leaves a strip of bare stomach between shirt and trousers.
+                    bottomY = root.InverseTransformPoint(hips.position).y - 0.08f;
                     return true;
                 }
                 case GarmentSlot.Hair:
