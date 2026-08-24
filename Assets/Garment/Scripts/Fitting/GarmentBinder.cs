@@ -181,9 +181,64 @@ namespace Garment.Fitting
             }
             if (!changed) return;
 
+            RelaxSeam(vertices, mesh.triangles, armThreshold, shoulderLocal.y);
             mesh.vertices = vertices;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+        }
+
+        /// <summary>
+        /// Laplacian relax of the armpit area after the sleeves are turned. An A-pose sleeve
+        /// carries extra cloth on its underside; once the sleeve is rotated up, that surplus
+        /// juts out sideways as a stiff flare unless the seam is smoothed back in.
+        /// </summary>
+        private static void RelaxSeam(Vector3[] vertices, int[] triangles, float threshold, float shoulderY)
+        {
+            var inZone = new bool[vertices.Length];
+            int zoneCount = 0;
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                float absX = Mathf.Abs(vertices[i].x);
+                if (absX < threshold - 0.07f || absX > threshold + 0.13f) continue;
+                if (vertices[i].y > shoulderY - 0.02f || vertices[i].y < shoulderY - 0.30f) continue;
+                inZone[i] = true;
+                zoneCount++;
+            }
+            if (zoneCount == 0) return;
+
+            var neighbours = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.HashSet<int>>();
+            for (int t = 0; t < triangles.Length; t += 3)
+            {
+                int a = triangles[t], b = triangles[t + 1], c = triangles[t + 2];
+                if (inZone[a] || inZone[b] || inZone[c])
+                {
+                    Link(neighbours, a, b); Link(neighbours, b, c); Link(neighbours, c, a);
+                }
+            }
+
+            var next = (Vector3[])vertices.Clone();
+            for (int pass = 0; pass < 6; pass++)
+            {
+                foreach (var pair in neighbours)
+                {
+                    int index = pair.Key;
+                    if (!inZone[index]) continue;
+
+                    var sum = Vector3.zero;
+                    foreach (int n in pair.Value) sum += vertices[n];
+                    next[index] = Vector3.Lerp(vertices[index], sum / pair.Value.Count, 0.5f);
+                }
+                foreach (var pair in neighbours)
+                    if (inZone[pair.Key]) vertices[pair.Key] = next[pair.Key];
+            }
+        }
+
+        private static void Link(System.Collections.Generic.Dictionary<int, System.Collections.Generic.HashSet<int>> map, int a, int b)
+        {
+            if (!map.TryGetValue(a, out var setA)) map[a] = setA = new System.Collections.Generic.HashSet<int>();
+            setA.Add(b);
+            if (!map.TryGetValue(b, out var setB)) map[b] = setB = new System.Collections.Generic.HashSet<int>();
+            setB.Add(a);
         }
 
         private static bool RectifySide(Vector3[] vertices, float sign, float threshold, float shoulderY, Vector3 boneDirection)
