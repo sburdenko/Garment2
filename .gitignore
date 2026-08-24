@@ -1,0 +1,20 @@
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# IDE / project files
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+.vs/
+.idea/
+
+# OS
+.DS_Store
