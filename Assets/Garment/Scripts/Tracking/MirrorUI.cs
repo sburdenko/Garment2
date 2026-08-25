@@ -82,7 +82,7 @@ namespace Garment.Tracking
             GUILayout.Label($"Inference: {provider.InferenceRate:0} fps    Display: {1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f):0} fps");
 
             if (overlay != null)
-                overlay.enabled = GUILayout.Toggle(overlay.enabled, " Show skeleton");
+                overlay.Visible = GUILayout.Toggle(overlay.Visible, " Show skeleton");
         }
 
         private void DrawCalibration()
@@ -120,6 +120,13 @@ namespace Garment.Tracking
                 if (GUILayout.Button($"{(worn ? "✓ " : string.Empty)}{definition.DisplayName}  ({definition.Slot})"))
                     wardrobe.Toggle(definition);
             }
+
+            if (wardrobe.WornIn(GarmentSlot.Top) == null) return;
+
+            GUILayout.Space(6f);
+            GUILayout.Label($"Top fit: {wardrobe.TopFitScale * 100f:0}%");
+            float scale = GUILayout.HorizontalSlider(wardrobe.TopFitScale, 0.85f, 1.15f);
+            if (!Mathf.Approximately(scale, wardrobe.TopFitScale)) wardrobe.TopFitScale = scale;
         }
     }
 }

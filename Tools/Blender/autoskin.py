@@ -10,6 +10,21 @@ mesh_obj.name = "shirt_skinned"
 mesh_obj.data.materials.clear()
 mesh_obj.data.materials.append(bpy.data.materials.new("shirt_Fabric"))
 
+# Fold the oversized underarm panels into a natural armhole curve. The source
+# mesh otherwise leaves a broad triangular flap below each raised sleeve.
+adjusted = 0
+for vertex in mesh_obj.data.vertices:
+    x = abs(vertex.co.x)
+    if x <= 0.232:
+        continue
+    t = min(max((x - 0.232) / (0.425 - 0.232), 0.0), 1.0)
+    t = t * t * (3.0 - 2.0 * t)
+    minimum_y = 1.08 + (1.32 - 1.08) * t
+    if vertex.co.y < minimum_y:
+        vertex.co.y = minimum_y
+        adjusted += 1
+print("UNDERARM_VERTICES", adjusted)
+
 def to_bl(u):
     # OBJ import with -Z forward / Y up maps (x,y,z)_unity-obj -> (x,-z,y)_blender
     return Vector((u[0], -u[2], u[1]))

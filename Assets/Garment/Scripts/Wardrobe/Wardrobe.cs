@@ -13,6 +13,7 @@ namespace Garment.Wardrobe
         [SerializeField] private GarmentCatalogue catalogue;
         [Tooltip("Put on the first garment of each slot when the scene starts.")]
         [SerializeField] private bool wearOnStart = true;
+        [SerializeField, Range(0.85f, 1.15f)] private float topFitScale = 1f;
 
         // Binding a garment costs hundreds of milliseconds, so a garment is bound once and
         // then only shown or hidden. Switching outfits must not stall the frame.
@@ -27,6 +28,18 @@ namespace Garment.Wardrobe
         public IReadOnlyList<GarmentDefinition> Catalogue => catalogue != null ? catalogue.Garments : Empty;
 
         public BodyRig Body => body;
+
+        public float TopFitScale
+        {
+            get => topFitScale;
+            set
+            {
+                topFitScale = Mathf.Clamp(value, 0.85f, 1.15f);
+                if (worn.TryGetValue(GarmentSlot.Top, out var definition) &&
+                    bound.TryGetValue(definition, out var instance) && instance != null)
+                    instance.transform.localScale = new Vector3(topFitScale, 1f, topFitScale);
+            }
+        }
 
         public GarmentDefinition WornIn(GarmentSlot slot) => worn.TryGetValue(slot, out var definition) ? definition : null;
 
@@ -67,6 +80,8 @@ namespace Garment.Wardrobe
             }
 
             instance.SetActive(true);
+            if (definition.Slot == GarmentSlot.Top)
+                instance.transform.localScale = new Vector3(topFitScale, 1f, topFitScale);
             worn[definition.Slot] = definition;
             Changed?.Invoke(definition.Slot, definition);
         }

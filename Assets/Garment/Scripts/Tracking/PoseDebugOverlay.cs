@@ -29,8 +29,15 @@ namespace Garment.Tracking
         [SerializeField] private float pointRadius = 5f;
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
         [SerializeField] private bool showRoi = true;
+        [SerializeField] private bool visible;
 
         private Material lineMaterial;
+
+        public bool Visible
+        {
+            get => visible;
+            set => visible = value;
+        }
 
         private void Awake()
         {
@@ -47,7 +54,7 @@ namespace Garment.Tracking
 
         private void OnGUI()
         {
-            if (provider == null || !provider.HasPose) return;
+            if (!visible || provider == null || !provider.HasPose) return;
 
             var frame = provider.LatestFrame;
             if (!frame.IsValid) return;
