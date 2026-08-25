@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace Garment.Tracking
@@ -24,6 +25,29 @@ namespace Garment.Tracking
         public override bool IsVerticallyMirrored => texture != null && texture.videoVerticallyMirrored;
 
         private void OnEnable()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            StartCoroutine(StartCameraWithPermission());
+#else
+            StartCamera();
+#endif
+        }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        private IEnumerator StartCameraWithPermission()
+        {
+            yield return Application.RequestUserAuthorization(UserAuthorization.WebCam);
+            if (!Application.HasUserAuthorization(UserAuthorization.WebCam))
+            {
+                Debug.LogError("WebcamFeed: camera permission was denied.", this);
+                yield break;
+            }
+
+            StartCamera();
+        }
+#endif
+
+        private void StartCamera()
         {
             var devices = WebCamTexture.devices;
             if (devices.Length == 0)

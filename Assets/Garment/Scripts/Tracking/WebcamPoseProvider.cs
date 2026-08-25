@@ -74,7 +74,11 @@ namespace Garment.Tracking
                 return;
             }
 
-            tracker = new PoseTracker(landmarker, cropShader, backend) { Mirrored = mirrored };
+            var runtimeBackend = backend;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            runtimeBackend = BackendType.GPUPixel;
+#endif
+            tracker = new PoseTracker(landmarker, cropShader, runtimeBackend) { Mirrored = mirrored };
         }
 
         private void Start()
