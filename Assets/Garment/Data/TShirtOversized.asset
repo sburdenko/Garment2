@@ -10,16 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7303dc7c5316f469ea99285311c9a084, type: 3}
-  m_Name: shirt
+  m_Name: TShirtOversized
   m_EditorClassIdentifier: 
-  displayName: shirt
-  sourcePrefab: {fileID: 919132149155446097, guid: 6b736256e5aa9490fad3afc5498f41b7, type: 3}
+  displayName: Oversized T-Shirt
+  sourcePrefab: {fileID: 919132149155446097, guid: cf98050dacdc5406daec304c078c371b, type: 3}
   slot: 0
-  submeshRoles: 00000000
+  submeshRoles: 0000000000000000
   materialOverrides:
-  - {fileID: 2100000, guid: a62484867da4d4fef875f581b9feaf07, type: 2}
-  fitMode: 1
-  compensateWidth: 1
+  - {fileID: -4205491790601670863, guid: b78db43a146fd48739e96b70f45a6e2c, type: 3}
+  - {fileID: -2105088873923080466, guid: b78db43a146fd48739e96b70f45a6e2c, type: 3}
+  fitMode: 0
+  compensateWidth: 0
   skinOffset: 0.004
   positionOffset: {x: 0, y: 0, z: 0}
   scaleMultiplier: 1

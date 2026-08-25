@@ -98,7 +98,7 @@ namespace Garment.Fitting
 
             var mesh = Object.Instantiate(source.sharedMesh);
             mesh.name = definition.DisplayName + " (preskinned)";
-            ApplyBodyShape(mesh, body);
+            ApplyBodyShape(mesh, body, definition, source);
             mesh.bindposes = bindposes;
 
             var holder = new GameObject($"Garment_{definition.DisplayName}");
@@ -115,19 +115,31 @@ namespace Garment.Fitting
             return holder;
         }
 
-        /// <summary>Widen and lengthen a pre-skinned garment the same way fitted ones are.</summary>
-        private static void ApplyBodyShape(Mesh mesh, BodyRig body)
+        /// <summary>Widen the torso of a pre-skinned garment without lengthening its sleeves.</summary>
+        private static void ApplyBodyShape(
+            Mesh mesh, BodyRig body, GarmentDefinition definition, SkinnedMeshRenderer source)
         {
-            if (body.GirthScale <= 1.01f && Mathf.Abs(body.ArmStretch - 1f) <= 0.01f) return;
+            if (!definition.CompensateWidth || body.GirthScale <= 1.01f) return;
 
             var vertices = mesh.vertices;
+            var weights = mesh.boneWeights;
+            var armBones = new HashSet<int>();
+            for (int i = 0; i < source.bones.Length; i++)
+            {
+                string boneName = source.bones[i] != null ? source.bones[i].name : string.Empty;
+                if (boneName.StartsWith("Left") || boneName.StartsWith("Right")) armBones.Add(i);
+            }
             for (int i = 0; i < vertices.Length; i++)
             {
-                if (body.GirthScale > 1f)
-                {
-                    vertices[i].x *= body.GirthScale;
-                    vertices[i].z *= body.GirthScale;
-                }
+                var weight = weights[i];
+                float armInfluence = 0f;
+                if (armBones.Contains(weight.boneIndex0)) armInfluence += weight.weight0;
+                if (armBones.Contains(weight.boneIndex1)) armInfluence += weight.weight1;
+                if (armBones.Contains(weight.boneIndex2)) armInfluence += weight.weight2;
+                if (armBones.Contains(weight.boneIndex3)) armInfluence += weight.weight3;
+                float scale = Mathf.Lerp(body.GirthScale, 1f, Mathf.Clamp01(armInfluence));
+                vertices[i].x *= scale;
+                vertices[i].z *= scale;
             }
             mesh.vertices = vertices;
             mesh.RecalculateBounds();
