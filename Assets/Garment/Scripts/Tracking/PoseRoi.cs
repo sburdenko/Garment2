@@ -82,13 +82,18 @@ namespace Garment.Tracking
         /// sees where the body is and pulls back in.
         /// </summary>
         public static PoseRoi FromLandmarks(Vector2[] screen, float[] visibility, float visibilityThreshold,
-                                            float aspectRatio, float padding)
+                                            float aspectRatio, float padding, bool includeLegs = true)
         {
             var min = new Vector2(float.MaxValue, float.MaxValue);
             var max = new Vector2(float.MinValue, float.MinValue);
             int counted = 0;
 
-            for (int i = 0; i < screen.Length; i++)
+            // The model reports leg landmarks even when the legs are out of frame — hallucinated,
+            // wandering, and often confidently visible. Framing the crop around them feeds their
+            // wander straight back into the next crop and the whole skeleton oscillates. When the
+            // legs are not trusted, frame the upper body only.
+            int count = includeLegs ? screen.Length : (int)PoseLandmark.LeftKnee;
+            for (int i = 0; i < count; i++)
             {
                 if (visibility[i] < visibilityThreshold) continue;
                 if (screen[i].x < 0f || screen[i].x > 1f || screen[i].y < 0f || screen[i].y > 1f) continue;
@@ -98,6 +103,17 @@ namespace Garment.Tracking
             }
 
             if (counted < 4) return FullFrame(aspectRatio);
+
+            if (!includeLegs)
+            {
+                // Reserve a fixed band below the hips so real legs are seen the moment they
+                // enter the frame — sized from the torso, which is measured, not hallucinated.
+                float shoulderY = (screen[(int)PoseLandmark.LeftShoulder].y
+                                 + screen[(int)PoseLandmark.RightShoulder].y) * 0.5f;
+                float hipY = (screen[(int)PoseLandmark.LeftHip].y
+                            + screen[(int)PoseLandmark.RightHip].y) * 0.5f;
+                min.y = Mathf.Max(0f, min.y - Mathf.Abs(shoulderY - hipY));
+            }
 
             var centre = (min + max) * 0.5f;
             var size = max - min;

@@ -19,6 +19,7 @@ namespace Garment.Wardrobe
         // then only shown or hidden. Switching outfits must not stall the frame.
         private readonly Dictionary<GarmentDefinition, GameObject> bound = new Dictionary<GarmentDefinition, GameObject>();
         private readonly Dictionary<GarmentSlot, GarmentDefinition> worn = new Dictionary<GarmentSlot, GarmentDefinition>();
+        private readonly HashSet<GarmentSlot> hiddenSlots = new HashSet<GarmentSlot>();
         private BodySkinIndex bodyIndex;
 
         public event Action<GarmentSlot, GarmentDefinition> Changed;
@@ -87,11 +88,25 @@ namespace Garment.Wardrobe
                 bound[definition] = instance;
             }
 
-            instance.SetActive(true);
+            instance.SetActive(!hiddenSlots.Contains(definition.Slot));
             if (definition.Slot == GarmentSlot.Top)
                 instance.transform.localScale = new Vector3(topFitScale, 1f, topFitScale);
             worn[definition.Slot] = definition;
             Changed?.Invoke(definition.Slot, definition);
+        }
+
+        /// <summary>
+        /// Show or hide whatever a slot is wearing without unbinding it. Hiding is free and
+        /// instant; the worn state stays, so the garment reappears the moment the slot is shown.
+        /// </summary>
+        public void SetSlotVisible(GarmentSlot slot, bool visible)
+        {
+            bool changed = visible ? hiddenSlots.Remove(slot) : hiddenSlots.Add(slot);
+            if (!changed) return;
+
+            if (worn.TryGetValue(slot, out var definition) &&
+                bound.TryGetValue(definition, out var instance) && instance != null)
+                instance.SetActive(visible);
         }
 
         public void Remove(GarmentSlot slot)

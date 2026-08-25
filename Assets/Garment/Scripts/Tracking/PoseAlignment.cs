@@ -19,9 +19,15 @@ namespace Garment.Tracking
         [Tooltip("Higher settles faster but shakes more.")]
         [SerializeField, Range(1f, 30f)] private float smoothing = 8f;
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
+        [Tooltip("Anchor movement slower than this (Hz) is treated as jitter and smoothed away.")]
+        [SerializeField, Range(0.1f, 10f)] private float anchorJitterCutoff = 1f;
+        [Tooltip("How much a moving anchor relaxes the smoothing. Higher follows faster.")]
+        [SerializeField, Range(0f, 100f)] private float anchorSpeedResponse = 20f;
 
         private Vector3 targetPosition;
         private bool hasTarget;
+        private OneEuroFilterVector3 anchorFilter;
+        private OneEuroFilter spanFilter;
 
         // The pinhole depth formula assumes the real camera's tilt and FOV, which are unknown.
         // This factor closes the loop: compare how big the avatar actually projects against the
@@ -38,14 +44,26 @@ namespace Garment.Tracking
         private void LateUpdate()
         {
             if (provider == null || !provider.HasPose) return;
-            AlignTo(provider.LatestFrame, Time.deltaTime);
+            AlignTo(provider.LatestFrame, Time.deltaTime, provider.Coverage);
         }
 
-        /// <summary>Place the avatar for a frame supplied directly, bypassing the live tracker.</summary>
+        /// <summary>
+        /// Place the avatar for a frame supplied directly, bypassing the live tracker. A lone
+        /// frame has no history to debounce, so its own visibility decides the coverage.
+        /// </summary>
         public void AlignTo(PoseFrame frame, float deltaTime)
+        {
+            if (!frame.IsValid) return;
+            AlignTo(frame, deltaTime,
+                frame.HasVisibleLowerBody(visibilityThreshold) ? BodyCoverage.FullBody : BodyCoverage.UpperBody);
+        }
+
+        public void AlignTo(PoseFrame frame, float deltaTime, BodyCoverage coverage)
         {
             if (rig == null || provider == null || view == null) return;
             if (!frame.IsValid || !IsTorsoVisible(frame)) return;
+
+            bool anklesVisible = coverage == BodyCoverage.FullBody;
 
             var hipsScreen = Midpoint(frame, PoseLandmark.LeftHip, PoseLandmark.RightHip);
             var shoulderScreen = Midpoint(frame, PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder);
@@ -55,7 +73,7 @@ namespace Garment.Tracking
             // instead of concentrating it in the legs.
             float measuredSpan;
             float avatarSpan;
-            if (AreAnklesVisible(frame))
+            if (anklesVisible)
             {
                 var ankleScreen = Midpoint(frame, PoseLandmark.LeftAnkle, PoseLandmark.RightAnkle);
                 measuredSpan = Mathf.Abs(shoulderScreen.y - ankleScreen.y);
@@ -70,7 +88,10 @@ namespace Garment.Tracking
             measuredSpan *= VerticalFrameScale();
             if (measuredSpan < 0.02f || avatarSpan <= 0f) return;
 
-            UpdateDepthCorrection(frame, measuredSpan, deltaTime);
+            if (spanFilter == null) spanFilter = new OneEuroFilter(anchorJitterCutoff, anchorSpeedResponse);
+            measuredSpan = spanFilter.Filter(measuredSpan, deltaTime);
+
+            UpdateDepthCorrection(measuredSpan, anklesVisible, deltaTime);
 
             float depth = DepthForSpan(avatarSpan, measuredSpan) * depthCorrection;
             if (depth <= 0f) return;
@@ -81,7 +102,10 @@ namespace Garment.Tracking
             // some joint must absorb the residual — and it should be the hips: a low neckline
             // or a bare arm above the sleeve is the first thing anyone notices, a waistband a
             // few centimetres off hides under the top. Shoulders and ankles get the weight.
-            const float shoulderWeight = 2f, ankleWeight = 2f, hipWeight = 1f;
+            // Framed waist-up the hips sit at the frame edge where the tracker is noisiest,
+            // so they get even less say.
+            const float shoulderWeight = 2f, ankleWeight = 2f;
+            float hipWeight = anklesVisible ? 1f : 0.5f;
 
             var hipsBone = rig.GetBone(BodyLandmark.Hips);
             var leftShoulderBone = rig.GetBone(BodyLandmark.LeftShoulder);
@@ -93,7 +117,7 @@ namespace Garment.Tracking
                            + (leftShoulderBone.position + rightShoulderBone.position) * 0.5f * shoulderWeight;
             float anchorTotal = hipWeight + shoulderWeight;
 
-            if (AreAnklesVisible(frame))
+            if (anklesVisible)
             {
                 var leftAnkleBone = rig.GetBone(BodyLandmark.LeftAnkle);
                 var rightAnkleBone = rig.GetBone(BodyLandmark.RightAnkle);
@@ -106,6 +130,9 @@ namespace Garment.Tracking
             }
             anchorScreen /= anchorTotal;
             anchorBone /= anchorTotal;
+
+            if (anchorFilter == null) anchorFilter = new OneEuroFilterVector3(anchorJitterCutoff, anchorSpeedResponse);
+            anchorScreen = anchorFilter.Filter(anchorScreen, deltaTime);
 
             if (provider.Mirrored) anchorScreen.x = 1f - anchorScreen.x;
 
@@ -132,9 +159,9 @@ namespace Garment.Tracking
         /// folds the ratio into the depth. Converges in a few frames and absorbs whatever the
         /// unknown real camera does that the ideal formula misses.
         /// </summary>
-        private void UpdateDepthCorrection(PoseFrame frame, float measuredSpan, float deltaTime)
+        private void UpdateDepthCorrection(float measuredSpan, bool anklesVisible, float deltaTime)
         {
-            if (!hasTarget || !AreAnklesVisible(frame)) return;
+            if (!hasTarget || !anklesVisible) return;
 
             var leftShoulder = rig.GetBone(BodyLandmark.LeftShoulder);
             var rightShoulder = rig.GetBone(BodyLandmark.RightShoulder);
@@ -179,9 +206,6 @@ namespace Garment.Tracking
             float shoulderY = (leftShoulder.position.y + rightShoulder.position.y) * 0.5f;
             return Mathf.Abs(shoulderY - lowerBone.position.y);
         }
-
-        private bool AreAnklesVisible(PoseFrame frame) =>
-            frame.HasVisibleLowerBody(visibilityThreshold);
 
         /// <summary>
         /// Must measure the same span the tracker does — hips to the midpoint of the shoulders.

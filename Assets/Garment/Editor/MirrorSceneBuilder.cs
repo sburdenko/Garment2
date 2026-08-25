@@ -107,6 +107,10 @@ namespace Garment.EditorTools
             Assign(wardrobe, "body", rig);
             Assign(wardrobe, "catalogue", AssetDatabase.LoadAssetAtPath<GarmentCatalogue>(CataloguePath));
 
+            var gate = wardrobeObject.AddComponent<CoverageGarmentGate>();
+            Assign(gate, "provider", provider);
+            Assign(gate, "wardrobe", wardrobe);
+
             var ui = wardrobeObject.AddComponent<MirrorUI>();
             Assign(ui, "overlay", Object.FindFirstObjectByType<PoseDebugOverlay>());
             Assign(ui, "wardrobe", wardrobe);

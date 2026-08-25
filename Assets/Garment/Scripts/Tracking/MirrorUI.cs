@@ -125,7 +125,7 @@ namespace Garment.Tracking
 
             string trackingStatus = !provider.HasPose
                 ? "No body found"
-                : provider.LatestFrame.HasVisibleLowerBody(0.5f) ? "Full body found" : "Upper body found";
+                : provider.Coverage == BodyCoverage.FullBody ? "Full body found" : "Upper body found";
             GUILayout.Label(trackingStatus);
             GUILayout.Label($"Inference: {provider.InferenceRate:0} fps    Display: {1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f):0} fps");
 

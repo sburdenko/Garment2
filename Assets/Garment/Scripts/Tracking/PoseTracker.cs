@@ -45,6 +45,12 @@ namespace Garment.Tracking
         /// <summary>Mirror the crop so the user sees themselves as in a mirror.</summary>
         public bool Mirrored { get; set; } = true;
 
+        /// <summary>
+        /// Whether leg landmarks may steer the crop. False while the person is only visible
+        /// from the waist up — the model still reports legs then, but they are hallucinated.
+        /// </summary>
+        public bool LowerBodyTrusted { get; set; } = true;
+
         public PoseRoi CurrentRoi => roi;
 
         public RenderTexture LastCrop => crop;
@@ -105,7 +111,8 @@ namespace Garment.Tracking
 
             var auxCentre = roi.ToSource(cropFrame.AuxCentre, Mirrored);
             var auxScale = roi.ToSource(cropFrame.AuxScale, Mirrored);
-            roi = PoseRoi.FromLandmarks(screen, cropFrame.Visibility, RoiVisibility, aspect, RoiPadding);
+            roi = PoseRoi.FromLandmarks(screen, cropFrame.Visibility, RoiVisibility, aspect, RoiPadding,
+                LowerBodyTrusted);
             hasRoi = true;
 
             var world = cropFrame.World;

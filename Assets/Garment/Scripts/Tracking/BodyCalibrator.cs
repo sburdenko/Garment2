@@ -117,10 +117,12 @@ namespace Garment.Tracking
 
             // Nobody presses a calibrate button in a fitting room mirror: the first time a whole
             // body stands in frame, measure it.
+            // Coverage gate: the model hallucinates in-frame legs on a waist-up person, and a
+            // single frame cannot tell them from real ones — the debounced state can.
             if (!IsSampling && !HasCalibrated && autoCalibrateAfter > 0f)
             {
                 var current = provider.LatestFrame;
-                if (current.IsValid && IsWholeBodyVisible(current))
+                if (provider.Coverage == BodyCoverage.FullBody && current.IsValid && IsWholeBodyVisible(current))
                 {
                     stableVisibleTime += Time.deltaTime;
                     if (stableVisibleTime >= autoCalibrateAfter) BeginCalibration();
@@ -131,7 +133,7 @@ namespace Garment.Tracking
             if (!IsSampling) return;
 
             var frame = provider.LatestFrame;
-            if (!frame.IsValid || !IsWholeBodyVisible(frame))
+            if (!frame.IsValid || provider.Coverage != BodyCoverage.FullBody || !IsWholeBodyVisible(frame))
             {
                 Status = "Whole body must be visible, feet included";
                 return;

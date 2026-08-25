@@ -21,18 +21,20 @@ namespace Garment.Tracking
         [SerializeField, Range(0f, 1f)] private float depthInfluence = 0.25f;
         [Tooltip("Landmarks below this visibility are ignored, and the bone holds its last pose.")]
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
-        [Tooltip("Higher settles faster but shakes more.")]
-        [SerializeField, Range(1f, 30f)] private float smoothing = 12f;
+        [Tooltip("Movement slower than this (Hz) is treated as sensor jitter and smoothed away.")]
+        [SerializeField, Range(0.1f, 10f)] private float jitterCutoff = 1.5f;
+        [Tooltip("How much a moving landmark relaxes the smoothing. Higher follows faster.")]
+        [SerializeField, Range(0f, 50f)] private float speedResponse = 10f;
         [Tooltip("Turn the body around. Which way the torso ends up facing depends on the mirror " +
                  "and on the rig's own bind orientation, so it is settled by measurement.")]
         [SerializeField] private bool faceCamera;
 
         private readonly Dictionary<BodyLandmark, Vector3> bindDirections = new Dictionary<BodyLandmark, Vector3>();
         private readonly Vector3[] filtered = new Vector3[PoseFrame.LandmarkCount];
+        private OneEuroFilterVector3[] filters;
 
         private Quaternion bindRootRotation;
         private bool captured;
-        private bool hasFiltered;
 
         public bool IsPosing => provider != null && provider.HasPose;
 
@@ -68,11 +70,21 @@ namespace Garment.Tracking
         public void ApplyTo(BodyRig target, float deltaTime)
         {
             if (target == null || provider == null || !provider.HasPose) return;
-            ApplyFrame(target, provider.LatestFrame, deltaTime);
+            ApplyFrame(target, provider.LatestFrame, deltaTime, provider.Coverage);
         }
 
-        /// <summary>Pose the rig from a frame supplied directly, bypassing the live tracker.</summary>
+        /// <summary>
+        /// Pose the rig from a frame supplied directly, bypassing the live tracker. A lone frame
+        /// has no history to debounce, so its own visibility decides the coverage.
+        /// </summary>
         public void ApplyFrame(BodyRig target, PoseFrame frame, float deltaTime)
+        {
+            if (!frame.IsValid) return;
+            ApplyFrame(target, frame, deltaTime,
+                frame.HasVisibleLowerBody(visibilityThreshold) ? BodyCoverage.FullBody : BodyCoverage.UpperBody);
+        }
+
+        public void ApplyFrame(BodyRig target, PoseFrame frame, float deltaTime, BodyCoverage coverage)
         {
             if (target == null || !frame.IsValid) return;
             if (!captured) CaptureBindPose();
@@ -85,7 +97,7 @@ namespace Garment.Tracking
             AimRoot(target, hipCentre, shoulderCentre);
             AimBone(target, BodyLandmark.Spine, hipCentre, shoulderCentre);
 
-            bool lowerBodyVisible = frame.HasVisibleLowerBody(visibilityThreshold);
+            bool lowerBodyVisible = coverage == BodyCoverage.FullBody;
             for (int i = 0; i < Aims.Length; i++)
             {
                 if (!lowerBodyVisible && i < 4) continue;
@@ -127,16 +139,15 @@ namespace Garment.Tracking
         /// <summary>Landmarks jitter frame to frame; the avatar must not.</summary>
         private void Filter(PoseFrame frame, float deltaTime)
         {
-            if (!hasFiltered)
+            if (filters == null)
             {
-                for (int i = 0; i < filtered.Length; i++) filtered[i] = Convert(frame.World[i]);
-                hasFiltered = true;
-                return;
+                filters = new OneEuroFilterVector3[PoseFrame.LandmarkCount];
+                for (int i = 0; i < filters.Length; i++)
+                    filters[i] = new OneEuroFilterVector3(jitterCutoff, speedResponse);
             }
 
-            float blend = 1f - Mathf.Exp(-smoothing * Mathf.Max(deltaTime, 1e-4f));
             for (int i = 0; i < filtered.Length; i++)
-                filtered[i] = Vector3.Lerp(filtered[i], Convert(frame.World[i]), blend);
+                filtered[i] = filters[i].Filter(Convert(frame.World[i]), deltaTime);
         }
 
         private Vector3 Convert(Vector3 modelSpace)
