@@ -1,5 +1,6 @@
 using Garment.Fitting;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace Garment.Tracking
 {
@@ -13,6 +14,7 @@ namespace Garment.Tracking
         [SerializeField] private float panelWidth = 300f;
 
         private FrameSource[] sources;
+        private PhotoFrameSource gallery;
 
         private void Awake()
         {
@@ -22,6 +24,7 @@ namespace Garment.Tracking
             if (overlay == null) overlay = FindFirstObjectByType<PoseDebugOverlay>();
 
             sources = FindObjectsByType<FrameSource>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            gallery = FindFirstObjectByType<PhotoFrameSource>(FindObjectsInactive.Include);
             if (calibrator != null) calibrator.Calibrated += OnCalibrated;
         }
 
@@ -33,6 +36,25 @@ namespace Garment.Tracking
         /// <summary>The skeleton just changed shape, so every garment has to be fitted again.</summary>
         private void OnCalibrated()
         {
+            if (wardrobe != null) wardrobe.Rebuild();
+        }
+
+        private void Update()
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard == null || gallery == null || gallery.Count < 2) return;
+            if (provider == null || provider.Feed != gallery) return;
+
+            if (keyboard.leftArrowKey.wasPressedThisFrame) CyclePhoto(-1);
+            else if (keyboard.rightArrowKey.wasPressedThisFrame) CyclePhoto(+1);
+        }
+
+        /// <summary>Another photo means another person: tracking and calibration start over.</summary>
+        private void CyclePhoto(int delta)
+        {
+            gallery.Cycle(delta);
+            provider.ResetTracking();
+            if (calibrator != null) calibrator.ResetCalibration();
             if (wardrobe != null) wardrobe.Rebuild();
         }
 
@@ -66,6 +88,16 @@ namespace Garment.Tracking
                     source.gameObject.SetActive(true);
                     provider.UseSource(source);
                 }
+            }
+
+            if (gallery != null && gallery.Count > 1 && provider.Feed == gallery)
+            {
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("◀", GUILayout.Width(40f))) CyclePhoto(-1);
+                GUILayout.Label($"{gallery.CurrentIndex + 1} / {gallery.Count}  (arrow keys)",
+                    GUILayout.ExpandWidth(true));
+                if (GUILayout.Button("▶", GUILayout.Width(40f))) CyclePhoto(+1);
+                GUILayout.EndHorizontal();
             }
         }
 

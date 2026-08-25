@@ -81,6 +81,23 @@ namespace Garment.Tracking
             return widest / boneWidth;
         }
 
+        /// <summary>Forget the current person: the rig returns to its own proportions and the
+        /// next stably visible body is measured from scratch.</summary>
+        public void ResetCalibration()
+        {
+            IsSampling = false;
+            HasCalibrated = false;
+            stableVisibleTime = 0f;
+            if (rig != null)
+            {
+                rig.transform.localScale = Vector3.one;
+                rig.GirthScale = 1f;
+                rig.ArmStretch = 1f;
+                rig.ArmRadius = 0f;
+            }
+            Status = "Not calibrated";
+        }
+
         /// <summary>Begin measuring. The subject should stand facing the camera, arms out.</summary>
         public void BeginCalibration()
         {

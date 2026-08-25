@@ -41,8 +41,15 @@ namespace Garment.EditorTools
             var camera = CreateCamera();
             var feed = new GameObject("Webcam").AddComponent<WebcamFeed>();
 
-            // A still photo can stand in for the camera; drop one into its Photo field to test.
+            // Stills stand in for the camera; every IMG_* in Assets goes into the gallery.
             var photo = new GameObject("Photo Source").AddComponent<PhotoFrameSource>();
+            var photoSerialized = new SerializedObject(photo);
+            var photosProperty = photoSerialized.FindProperty("photos");
+            var found = FindPhotos();
+            photosProperty.arraySize = found.Length;
+            for (int i = 0; i < found.Length; i++)
+                photosProperty.GetArrayElementAtIndex(i).objectReferenceValue = found[i];
+            photoSerialized.ApplyModifiedPropertiesWithoutUndo();
 
             var display = CreateDisplay(camera, feed);
 
@@ -120,6 +127,19 @@ namespace Garment.EditorTools
             RenderSettings.ambientSkyColor = new Color(0.5f, 0.52f, 0.56f);
             RenderSettings.ambientEquatorColor = new Color(0.38f, 0.38f, 0.4f);
             RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.22f);
+        }
+
+        private static Texture2D[] FindPhotos()
+        {
+            var photos = new System.Collections.Generic.List<Texture2D>();
+            foreach (var guid in AssetDatabase.FindAssets("IMG_ t:texture2D", new[] { "Assets" }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (texture != null) photos.Add(texture);
+            }
+            photos.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+            return photos.ToArray();
         }
 
         private static Camera CreateCamera()

@@ -29,6 +29,12 @@ namespace Garment.Tracking
         {
             if (source == null || source == feed) return;
             feed = source;
+            ResetTracking();
+        }
+
+        /// <summary>The current source changed its content (e.g. another photo) — start over.</summary>
+        public void ResetTracking()
+        {
             HasPose = false;
             tracker?.Reset();
         }
