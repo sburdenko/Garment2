@@ -111,7 +111,7 @@ namespace Garment.Fitting
             renderer.bones = bones;
             renderer.rootBone = bodySmr.rootBone;
             renderer.updateWhenOffscreen = true;
-            renderer.sharedMaterials = ResolvePreSkinnedMaterials(source, mesh.subMeshCount);
+            renderer.sharedMaterials = ResolvePreSkinnedMaterials(definition, source, mesh.subMeshCount);
             return holder;
         }
 
@@ -140,12 +140,15 @@ namespace Garment.Fitting
             return name;
         }
 
-        private static Material[] ResolvePreSkinnedMaterials(SkinnedMeshRenderer source, int subMeshCount)
+        private static Material[] ResolvePreSkinnedMaterials(GarmentDefinition definition, SkinnedMeshRenderer source, int subMeshCount)
         {
             var fallback = source.sharedMaterials.Length > 0 ? source.sharedMaterials : null;
             var materials = new Material[subMeshCount];
             for (int i = 0; i < subMeshCount; i++)
-                materials[i] = fallback != null ? fallback[Mathf.Min(i, fallback.Length - 1)] : null;
+            {
+                var imported = fallback != null ? fallback[Mathf.Min(i, fallback.Length - 1)] : null;
+                materials[i] = definition.MaterialFor(i, imported);
+            }
             return materials;
         }
 

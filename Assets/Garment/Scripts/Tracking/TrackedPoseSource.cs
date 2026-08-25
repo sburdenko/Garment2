@@ -85,8 +85,11 @@ namespace Garment.Tracking
             AimRoot(target, hipCentre, shoulderCentre);
             AimBone(target, BodyLandmark.Spine, hipCentre, shoulderCentre);
 
-            foreach (var (bone, from, to) in Aims)
+            bool lowerBodyVisible = frame.HasVisibleLowerBody(visibilityThreshold);
+            for (int i = 0; i < Aims.Length; i++)
             {
+                if (!lowerBodyVisible && i < 4) continue;
+                var (bone, from, to) = Aims[i];
                 if (frame.VisibilityOf(from) < visibilityThreshold || frame.VisibilityOf(to) < visibilityThreshold) continue;
                 AimBone(target, bone, Position(from), Position(to));
             }

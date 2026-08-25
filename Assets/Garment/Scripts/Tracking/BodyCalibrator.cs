@@ -315,14 +315,12 @@ namespace Garment.Tracking
             var required = new[]
             {
                 PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder,
-                PoseLandmark.LeftHip, PoseLandmark.RightHip,
-                PoseLandmark.LeftKnee, PoseLandmark.RightKnee,
-                PoseLandmark.LeftAnkle, PoseLandmark.RightAnkle
+                PoseLandmark.LeftHip, PoseLandmark.RightHip
             };
 
             foreach (var landmark in required)
                 if (frame.VisibilityOf(landmark) < visibilityThreshold) return false;
-            return true;
+            return frame.HasVisibleLowerBody(visibilityThreshold);
         }
     }
 }

@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7303dc7c5316f469ea99285311c9a084, type: 3}
-  m_Name: FV2 Straight-Leg Jeans_fbx_thick
+  m_Name: StraightLegJeans
   m_EditorClassIdentifier: 
-  displayName: FV2 Straight-Leg Jeans
-  sourcePrefab: {fileID: 919132149155446097, guid: 1e9471d128d03490bbcf523d60e46e66, type: 3}
+  displayName: Straight-Leg Jeans
+  sourcePrefab: {fileID: 919132149155446097, guid: fd9106e80075c4e5189e085e96a7e257, type: 3}
   slot: 1
   submeshRoles: 0000000001000000010000000100000001000000010000000100000001000000010000000100000001000000
   materialOverrides:
@@ -36,3 +36,4 @@ MonoBehaviour:
   resolvePenetration: 1
   penetrationPasses: 2
   penetrationSmoothing: 3
+  weightSmoothing: 2

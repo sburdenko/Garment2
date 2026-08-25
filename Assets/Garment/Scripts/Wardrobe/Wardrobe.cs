@@ -70,7 +70,15 @@ namespace Garment.Wardrobe
                 return;
             }
 
-            Remove(definition.Slot);
+            if (definition.Slot == GarmentSlot.Top || definition.Slot == GarmentSlot.Outer)
+            {
+                Remove(GarmentSlot.Top);
+                Remove(GarmentSlot.Outer);
+            }
+            else
+            {
+                Remove(definition.Slot);
+            }
 
             if (!bound.TryGetValue(definition, out var instance) || instance == null)
             {

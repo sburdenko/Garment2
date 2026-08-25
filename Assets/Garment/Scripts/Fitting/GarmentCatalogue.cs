@@ -11,7 +11,7 @@ namespace Garment.Fitting
     public sealed class GarmentCatalogue : ScriptableObject
     {
         [SerializeField] private List<GarmentDefinition> garments = new List<GarmentDefinition>();
-        [Tooltip("Worn on start. Anything not listed here falls back to the first garment of that slot.")]
+        [Tooltip("The exact outfit worn on start. Slots omitted here start empty.")]
         [SerializeField] private List<GarmentDefinition> defaultOutfit = new List<GarmentDefinition>();
 
         public IReadOnlyList<GarmentDefinition> Garments => garments;
@@ -21,9 +21,6 @@ namespace Garment.Fitting
         public GarmentDefinition DefaultFor(GarmentSlot slot)
         {
             foreach (var garment in defaultOutfit)
-                if (garment != null && garment.Slot == slot) return garment;
-
-            foreach (var garment in garments)
                 if (garment != null && garment.Slot == slot) return garment;
             return null;
         }

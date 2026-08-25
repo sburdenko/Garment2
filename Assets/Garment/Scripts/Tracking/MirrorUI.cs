@@ -15,6 +15,7 @@ namespace Garment.Tracking
 
         private FrameSource[] sources;
         private PhotoFrameSource gallery;
+        private bool uiVisible = true;
 
         private void Awake()
         {
@@ -42,6 +43,9 @@ namespace Garment.Tracking
         private void Update()
         {
             var keyboard = Keyboard.current;
+            if (keyboard != null && keyboard.hKey.wasPressedThisFrame)
+                uiVisible = !uiVisible;
+
             if (keyboard == null || gallery == null || gallery.Count < 2) return;
             if (provider == null || provider.Feed != gallery) return;
 
@@ -60,7 +64,16 @@ namespace Garment.Tracking
 
         private void OnGUI()
         {
+            if (!uiVisible) return;
+
             GUILayout.BeginArea(new Rect(12f, 12f, panelWidth, Screen.height - 24f), GUI.skin.box);
+
+            if (GUILayout.Button("Hide UI (H)"))
+            {
+                uiVisible = false;
+                GUILayout.EndArea();
+                return;
+            }
 
             DrawSources();
             GUILayout.Space(8f);
@@ -110,7 +123,10 @@ namespace Garment.Tracking
                 return;
             }
 
-            GUILayout.Label(provider.HasPose ? "Body found" : "No body — step back so you fit in frame");
+            string trackingStatus = !provider.HasPose
+                ? "No body found"
+                : provider.LatestFrame.HasVisibleLowerBody(0.5f) ? "Full body found" : "Upper body found";
+            GUILayout.Label(trackingStatus);
             GUILayout.Label($"Inference: {provider.InferenceRate:0} fps    Display: {1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f):0} fps");
 
             if (overlay != null)

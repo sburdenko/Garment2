@@ -15,9 +15,6 @@ namespace Garment.Tracking
         /// <summary>Human-readable name for the source picker.</summary>
         public abstract string DisplayName { get; }
 
-        /// <summary>Higher wins when several sources are ready. A supplied photo beats live video.</summary>
-        public virtual int Priority => 0;
-
         /// <summary>Rotation the source reports; the image must be turned by this to look upright.</summary>
         public virtual int RotationDegrees => 0;
 

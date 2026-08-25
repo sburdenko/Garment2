@@ -41,7 +41,7 @@ namespace Garment.EditorTools
             var camera = CreateCamera();
             var feed = new GameObject("Webcam").AddComponent<WebcamFeed>();
 
-            // Stills stand in for the camera; every IMG_* in Assets goes into the gallery.
+            // Test photos live together and are numbered to define their gallery order.
             var photo = new GameObject("Photo Source").AddComponent<PhotoFrameSource>();
             var photoSerialized = new SerializedObject(photo);
             var photosProperty = photoSerialized.FindProperty("photos");
@@ -132,7 +132,7 @@ namespace Garment.EditorTools
         private static Texture2D[] FindPhotos()
         {
             var photos = new System.Collections.Generic.List<Texture2D>();
-            foreach (var guid in AssetDatabase.FindAssets("IMG_ t:texture2D", new[] { "Assets" }))
+            foreach (var guid in AssetDatabase.FindAssets("t:texture2D", new[] { "Assets/Garment/TestPhotos" }))
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
                 var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);

@@ -13,10 +13,13 @@ namespace Garment.Tracking
         [SerializeField] private bool mirrored = true;
         [Tooltip("Run inference at most this often. Tracking rarely needs the full frame rate.")]
         [SerializeField, Range(5f, 60f)] private float inferencesPerSecond = 20f;
+        [Tooltip("Keep the last good pose through brief missed detections so the avatar does not flicker.")]
+        [SerializeField, Range(0f, 1f)] private float poseHoldSeconds = 0.3f;
         [SerializeField] private BackendType backend = BackendType.GPUCompute;
 
         private PoseTracker tracker;
         private float nextInferenceTime;
+        private float lastPoseTime = float.NegativeInfinity;
 
         public PoseFrame LatestFrame { get; private set; }
 
@@ -36,6 +39,7 @@ namespace Garment.Tracking
         public void ResetTracking()
         {
             HasPose = false;
+            lastPoseTime = float.NegativeInfinity;
             tracker?.Reset();
         }
 
@@ -87,31 +91,6 @@ namespace Garment.Tracking
             tracker = new PoseTracker(landmarker, cropShader, runtimeBackend) { Mirrored = mirrored };
         }
 
-        private void Start()
-        {
-            SelectBestSource();
-        }
-
-        /// <summary>
-        /// Prefer whichever ready source ranks highest — a photo dropped in for testing should
-        /// take over without anyone having to unplug the camera first.
-        /// </summary>
-        private void SelectBestSource()
-        {
-            FrameSource best = null;
-            foreach (var candidate in FindObjectsByType<FrameSource>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            {
-                if (candidate == null || !candidate.IsReady) continue;
-                if (best == null || candidate.Priority > best.Priority) best = candidate;
-            }
-
-            if (best == null || best == feed) return;
-
-            feed = best;
-            tracker?.Reset();
-            Debug.Log($"{name}: using {best.DisplayName}.", this);
-        }
-
         private void OnDestroy()
         {
             tracker?.Dispose();
@@ -131,8 +110,9 @@ namespace Garment.Tracking
             {
                 LatestFrame = frame;
                 HasPose = true;
+                lastPoseTime = Time.unscaledTime;
             }
-            else
+            else if (Time.unscaledTime - lastPoseTime > poseHoldSeconds)
             {
                 HasPose = false;
             }

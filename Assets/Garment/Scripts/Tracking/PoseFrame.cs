@@ -46,6 +46,36 @@ namespace Garment.Tracking
 
         public float VisibilityOf(PoseLandmark landmark) => Visibility[(int)landmark];
 
+        /// <summary>True only when both legs are confidently observed inside the camera frame.</summary>
+        public bool HasVisibleLowerBody(float visibilityThreshold)
+        {
+            if (VisibilityOf(PoseLandmark.LeftKnee) < visibilityThreshold ||
+                VisibilityOf(PoseLandmark.RightKnee) < visibilityThreshold ||
+                VisibilityOf(PoseLandmark.LeftAnkle) < visibilityThreshold ||
+                VisibilityOf(PoseLandmark.RightAnkle) < visibilityThreshold)
+                return false;
+
+            const float frameMargin = 0.02f;
+            var leftKnee = ScreenOf(PoseLandmark.LeftKnee);
+            var rightKnee = ScreenOf(PoseLandmark.RightKnee);
+            var leftAnkle = ScreenOf(PoseLandmark.LeftAnkle);
+            var rightAnkle = ScreenOf(PoseLandmark.RightAnkle);
+            if (leftKnee.x < frameMargin || leftKnee.x > 1f - frameMargin ||
+                leftKnee.y < frameMargin || leftKnee.y > 1f - frameMargin ||
+                rightKnee.x < frameMargin || rightKnee.x > 1f - frameMargin ||
+                rightKnee.y < frameMargin || rightKnee.y > 1f - frameMargin ||
+                leftAnkle.x < frameMargin || leftAnkle.x > 1f - frameMargin ||
+                leftAnkle.y < frameMargin || leftAnkle.y > 1f - frameMargin ||
+                rightAnkle.x < frameMargin || rightAnkle.x > 1f - frameMargin ||
+                rightAnkle.y < frameMargin || rightAnkle.y > 1f - frameMargin)
+                return false;
+
+            float hipY = Midpoint2D(PoseLandmark.LeftHip, PoseLandmark.RightHip).y;
+            float kneeY = (leftKnee.y + rightKnee.y) * 0.5f;
+            float ankleY = (leftAnkle.y + rightAnkle.y) * 0.5f;
+            return hipY - kneeY > 0.03f && kneeY - ankleY > 0.03f;
+        }
+
         public Vector3 Midpoint(PoseLandmark a, PoseLandmark b) => (WorldOf(a) + WorldOf(b)) * 0.5f;
 
         public Vector2 Midpoint2D(PoseLandmark a, PoseLandmark b) => (ScreenOf(a) + ScreenOf(b)) * 0.5f;

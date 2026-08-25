@@ -181,8 +181,7 @@ namespace Garment.Tracking
         }
 
         private bool AreAnklesVisible(PoseFrame frame) =>
-            frame.VisibilityOf(PoseLandmark.LeftAnkle) >= visibilityThreshold &&
-            frame.VisibilityOf(PoseLandmark.RightAnkle) >= visibilityThreshold;
+            frame.HasVisibleLowerBody(visibilityThreshold);
 
         /// <summary>
         /// Must measure the same span the tracker does — hips to the midpoint of the shoulders.

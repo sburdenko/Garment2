@@ -61,16 +61,20 @@ namespace Garment.Tracking
 
             var rect = FeedRect();
             bool mirrored = provider.Mirrored;
+            bool lowerBodyVisible = frame.HasVisibleLowerBody(visibilityThreshold);
 
             GUI.color = boneColour;
-            foreach (var (from, to) in Bones)
+            for (int i = 0; i < Bones.Length; i++)
             {
+                if (!lowerBodyVisible && i >= 8) break;
+                var (from, to) = Bones[i];
                 if (frame.VisibilityOf(from) < visibilityThreshold || frame.VisibilityOf(to) < visibilityThreshold) continue;
                 DrawLine(ToScreen(frame.ScreenOf(from), rect, mirrored), ToScreen(frame.ScreenOf(to), rect, mirrored));
             }
 
             for (int i = 0; i < PoseFrame.LandmarkCount; i++)
             {
+                if (!lowerBodyVisible && i >= (int)PoseLandmark.LeftKnee) continue;
                 if (frame.Visibility[i] < visibilityThreshold) continue;
                 var point = ToScreen(frame.Screen[i], rect, mirrored);
                 GUI.DrawTexture(new Rect(point.x - pointRadius, point.y - pointRadius,

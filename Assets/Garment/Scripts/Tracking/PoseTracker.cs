@@ -14,14 +14,23 @@ namespace Garment.Tracking
         private const int CropSize = 256;
         private const float RoiPadding = 1.35f;
         private const float RoiVisibility = 0.5f;
+        private const float MinimumShoulderWidth = 0.05f;
+        private const float MinimumTorsoHeight = 0.08f;
+        private const float SteadyScreenBlend = 0.2f;
+        private const float FastScreenBlend = 0.85f;
+        private const float SteadyMotionDistance = 0.01f;
+        private const float FastMotionDistance = 0.08f;
 
         private readonly BlazePoseEstimator estimator;
         private readonly Material cropMaterial;
         private readonly RenderTexture crop;
+        private readonly Vector2[] rawScreen = new Vector2[PoseFrame.LandmarkCount];
+        private readonly Vector2[] filteredScreen = new Vector2[PoseFrame.LandmarkCount];
         private readonly Vector2[] screen = new Vector2[PoseFrame.LandmarkCount];
 
         private PoseRoi roi;
         private bool hasRoi;
+        private bool hasFilteredScreen;
         private float[] segmentation;
 
         public PoseTracker(ModelAsset landmarker, Shader cropShader, BackendType backend = BackendType.GPUCompute)
@@ -58,7 +67,41 @@ namespace Garment.Tracking
             }
 
             for (int i = 0; i < PoseFrame.LandmarkCount; i++)
-                screen[i] = roi.ToSource(cropFrame.Screen[i], Mirrored);
+                rawScreen[i] = roi.ToSource(cropFrame.Screen[i], Mirrored);
+
+            int leftShoulder = (int)PoseLandmark.LeftShoulder;
+            int rightShoulder = (int)PoseLandmark.RightShoulder;
+            int leftHip = (int)PoseLandmark.LeftHip;
+            int rightHip = (int)PoseLandmark.RightHip;
+            if (cropFrame.Visibility[leftShoulder] < RoiVisibility ||
+                cropFrame.Visibility[rightShoulder] < RoiVisibility ||
+                cropFrame.Visibility[leftHip] < RoiVisibility ||
+                cropFrame.Visibility[rightHip] < RoiVisibility ||
+                Vector2.Distance(rawScreen[leftShoulder], rawScreen[rightShoulder]) < MinimumShoulderWidth ||
+                Vector2.Distance((rawScreen[leftShoulder] + rawScreen[rightShoulder]) * 0.5f,
+                    (rawScreen[leftHip] + rawScreen[rightHip]) * 0.5f) < MinimumTorsoHeight)
+            {
+                hasRoi = false;
+                return false;
+            }
+
+            for (int i = 0; i < PoseFrame.LandmarkCount; i++)
+            {
+                if (!hasFilteredScreen)
+                {
+                    filteredScreen[i] = rawScreen[i];
+                }
+                else
+                {
+                    float response = Mathf.InverseLerp(SteadyMotionDistance, FastMotionDistance,
+                        Vector2.Distance(filteredScreen[i], rawScreen[i]));
+                    float blend = Mathf.Lerp(SteadyScreenBlend, FastScreenBlend, response);
+                    filteredScreen[i] = Vector2.Lerp(filteredScreen[i], rawScreen[i], blend);
+                }
+
+                screen[i] = filteredScreen[i];
+            }
+            hasFilteredScreen = true;
 
             var auxCentre = roi.ToSource(cropFrame.AuxCentre, Mirrored);
             var auxScale = roi.ToSource(cropFrame.AuxScale, Mirrored);
@@ -152,6 +195,7 @@ namespace Garment.Tracking
         public void Reset()
         {
             hasRoi = false;
+            hasFilteredScreen = false;
         }
 
         private void Blit(Texture source)

@@ -13,6 +13,8 @@ namespace Garment.Tracking
     /// </summary>
     public readonly struct PoseRoi
     {
+        private const float MinimumTrackedHalfSide = 0.1f;
+
         /// <summary>Centre in source UV, 0..1.</summary>
         public readonly Vector2 Centre;
 
@@ -89,6 +91,7 @@ namespace Garment.Tracking
             for (int i = 0; i < screen.Length; i++)
             {
                 if (visibility[i] < visibilityThreshold) continue;
+                if (screen[i].x < 0f || screen[i].x > 1f || screen[i].y < 0f || screen[i].y > 1f) continue;
                 min = Vector2.Min(min, screen[i]);
                 max = Vector2.Max(max, screen[i]);
                 counted++;
@@ -104,6 +107,10 @@ namespace Garment.Tracking
             float heightInWidths = aspectRatio > 1e-4f ? size.y / aspectRatio : size.y;
 
             float halfSide = Mathf.Max(widthInWidths, heightInWidths) * 0.5f * padding;
+            if (halfSide < MinimumTrackedHalfSide) return FullFrame(aspectRatio);
+
+            centre.x = Mathf.Clamp01(centre.x);
+            centre.y = Mathf.Clamp01(centre.y);
             return new PoseRoi(centre, ExtentFor(halfSide, aspectRatio), 0f);
         }
 

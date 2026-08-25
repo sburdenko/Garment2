@@ -18,7 +18,7 @@ namespace Garment.EditorTools
             { "jean", "trouser", "pant", "short", "skirt", "legging", "chino" };
 
         private static readonly string[] OuterKeywords =
-            { "jacket", "coat", "blazer", "hoodie", "cardigan", "parka" };
+            { "jacket", "coat", "blazer", "hoodie", "cardigan", "parka", "puffer" };
 
         [MenuItem("Assets/Garment/Create Definition", true)]
         private static bool ValidateCreate() => Selection.activeObject is GameObject;

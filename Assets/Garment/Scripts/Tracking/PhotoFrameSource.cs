@@ -13,8 +13,6 @@ namespace Garment.Tracking
 
         public override bool IsReady => CurrentPhoto != null;
 
-        public override int Priority => 10;
-
         public override string DisplayName =>
             CurrentPhoto != null
                 ? $"Photo: {CurrentPhoto.name}" + (photos.Length > 1 ? $" ({CurrentIndex + 1}/{photos.Length})" : string.Empty)
