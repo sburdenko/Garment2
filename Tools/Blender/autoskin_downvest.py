@@ -158,33 +158,30 @@ def measured_cap_droop(mesh_object, sleeve_mask):
     return math.atan(-slope)
 
 
-def raise_cap_sleeves(mesh_object, shoulders):
+def raise_cap_sleeves(mesh_object, shoulders, sleeve_mask):
     """One rigid turn of each cap about its shoulder, droop up to horizontal.
 
     The tracked T-pose holds the arms level, so the bind mesh must too — the same
     rectification the puffer needs, scaled down to caps. Blended by each vertex's
     own arm weight so the armhole seam stretches instead of tearing.
     """
-    sleeve_mask = sleeve_vertex_mask(mesh_object)
     droop = measured_cap_droop(mesh_object, sleeve_mask)
     print("CAP_DROOP_DEG", round(math.degrees(droop), 1))
 
-    arm_groups = {g.index: g.name for g in mesh_object.vertex_groups
-                  if g.name in ("LeftUpperArm", "RightUpperArm")}
+    # One RIGID turn of each whole shell — a blend rotates half a cap and shears
+    # it into a torn-looking flap (measured mistake, and the puffer's sleeves hit
+    # the same trap once: per-vertex rectification shreds, rigid keeps the tube).
     moved = 0
+    cos_a, sin_a = math.cos(droop), math.sin(droop)
     for vertex in mesh_object.data.vertices:
-        influence = min(sum(a.weight for a in vertex.groups if a.group in arm_groups), 1.0)
-        if influence <= 0.0001:
+        if not sleeve_mask[vertex.index]:
             continue
-        side = "Left" if vertex.co.x >= 0.0 else "Right"
-        pivot = shoulders[side]
+        pivot = shoulders["Left" if vertex.co.x >= 0.0 else "Right"]
         dx = abs(vertex.co.x) - abs(pivot.x)
         dz = vertex.co.z - pivot.z
-        cos_a, sin_a = math.cos(droop), math.sin(droop)
         rx = dx * cos_a - dz * sin_a
         rz = dx * sin_a + dz * cos_a
-        rotated = Vector((math.copysign(abs(pivot.x) + rx, vertex.co.x), vertex.co.y, pivot.z + rz))
-        vertex.co = vertex.co.lerp(rotated, influence)
+        vertex.co = Vector((math.copysign(abs(pivot.x) + rx, vertex.co.x), vertex.co.y, pivot.z + rz))
         moved += 1
     mesh_object.data.update()
     print("CAP_VERTICES_RAISED", moved)
@@ -247,15 +244,15 @@ def assign_weights(mesh_object, positions):
     sleeve_mask = sleeve_vertex_mask(mesh_object)
 
     for vertex in mesh.verts:
-        arm_factor = (smoothstep(SLEEVE_BLEND_INNER, SLEEVE_BLEND_OUTER, abs(vertex.co.x))
-                      if sleeve_mask[vertex.index] else 0.0)
-        weights = {
-            name: weight * (1.0 - arm_factor)
-            for name, weight in normalized_inverse_distances(vertex.co, torso_segments)
-        }
         side = "Left" if vertex.co.x >= 0.0 else "Right"
-        weights[f"{side}UpperArm"] = arm_factor
+        if sleeve_mask[vertex.index]:
+            # The caps are separate shells, not fabric continuous with the body:
+            # there is no seam to protect, and a cap must always point down the
+            # arm. Whole shell on the arm bone — any partial blend shears it.
+            vertex[deform][groups[f"{side}UpperArm"].index] = 1.0
+            continue
 
+        weights = dict(normalized_inverse_distances(vertex.co, torso_segments))
         strongest = sorted(weights.items(), key=lambda item: item[1], reverse=True)[:4]
         total = sum(weight for _, weight in strongest)
         for name, weight in strongest:
@@ -295,7 +292,8 @@ with SKELETON.open(encoding="utf-8") as stream:
 positions = {bone["name"]: to_blender(bone) for bone in bones}
 armature_object = create_armature(bones, positions, "MannequinRig")
 assign_weights(mesh_object, positions)
-raise_cap_sleeves(mesh_object, {"Left": positions["LeftShoulder"], "Right": positions["RightShoulder"]})
+raise_cap_sleeves(mesh_object, {"Left": positions["LeftShoulder"], "Right": positions["RightShoulder"]},
+                  sleeve_vertex_mask(mesh_object))
 
 mesh_object.parent = armature_object
 modifier = mesh_object.modifiers.new(name="Armature", type="ARMATURE")
