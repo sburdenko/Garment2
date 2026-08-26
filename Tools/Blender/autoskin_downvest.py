@@ -15,8 +15,12 @@ OUTPUT = PROJECT_ROOT / "Assets/Garment/Models/DownVest/DownVest_Rigged.fbx"
 # CLO exported the vest together with its avatar. The garment's materials carry
 # fabric/trim names; the avatar's are anonymous "MaterialXXXX" — that is the split.
 GARMENT_MATERIAL_PREFIXES = ("Default Fabric", "Knit_Terry", "FABRIC", "Trim_Hardware")
-COLLAR_BASE = 1.55
-COLLAR_TOP = 1.60
+# Measured against the mannequin (shoulder 1.394, head base 1.57): the garment's
+# shoulder seam sits at 1.42, and its funnel collar ran to 1.70 — over the face.
+# The puffer's collar ends near 1.55 and reads right, so this one gets the same.
+GLOBAL_DROP = 0.03
+COLLAR_BASE = 1.46
+COLLAR_TOP = 1.54
 SLEEVE_BLEND_INNER = 0.17
 SLEEVE_BLEND_OUTER = 0.20
 
@@ -212,6 +216,9 @@ mesh_object.data.name = "DownVest_Rigged"
 
 strip_avatar(mesh_object)
 fit_collar(mesh_object)
+for vertex in mesh_object.data.vertices:
+    vertex.co.z -= GLOBAL_DROP
+mesh_object.data.update()
 zs = [v.co.z for v in mesh_object.data.vertices]
 print("GARMENT_Z", round(min(zs), 3), "..", round(max(zs), 3))
 print("MATERIALS", [slot.material.name if slot.material else "?" for slot in mesh_object.material_slots])
