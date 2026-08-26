@@ -91,6 +91,9 @@ namespace Garment.Wardrobe
             instance.SetActive(dressed);
             if (definition.Slot == GarmentSlot.Top)
                 instance.transform.localScale = new Vector3(topFitScale, 1f, topFitScale);
+            if (definition.SimulateCloth && instance.GetComponent<ClothDrape>() == null)
+                instance.AddComponent<ClothDrape>()
+                    .Drape(body, instance.GetComponentInChildren<SkinnedMeshRenderer>());
 
             worn[definition.Slot] = definition;
             Changed?.Invoke(definition.Slot, definition);

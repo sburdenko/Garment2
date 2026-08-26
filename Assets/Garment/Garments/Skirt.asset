@@ -26,4 +26,5 @@ MonoBehaviour:
   resolvePenetration: 1
   penetrationPasses: 2
   penetrationSmoothing: 3
+  simulateCloth: 1
   weightSmoothing: 2

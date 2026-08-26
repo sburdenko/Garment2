@@ -34,6 +34,11 @@ namespace Garment.Fitting
         [Tooltip("Spreads each push-out over neighbouring vertices so no bumps appear.")]
         [SerializeField, Range(0, 8)] private int penetrationSmoothing = 3;
 
+        [Header("Cloth")]
+        [Tooltip("Simulate this garment with Unity Cloth: the band stays pinned to the skinned " +
+                 "pose and the rest drapes and collides with the legs. For light meshes only.")]
+        [SerializeField] private bool simulateCloth;
+
         [Header("Skinning")]
         [Tooltip("Averages transferred bone weights across neighbours. Prevents the garment tearing where body parts meet.")]
         [SerializeField, Range(0, 6)] private int weightSmoothing = 2;
@@ -49,6 +54,7 @@ namespace Garment.Fitting
         public int PenetrationPasses => penetrationPasses;
         public int PenetrationSmoothing => penetrationSmoothing;
         public int WeightSmoothing => weightSmoothing;
+        public bool SimulateCloth => simulateCloth;
         public float ScaleMultiplier => scaleMultiplier;
 
         public Material MaterialFor(int submeshIndex, Material fallback)
