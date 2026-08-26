@@ -19,8 +19,8 @@ namespace Garment.Wardrobe
         // then only shown or hidden. Switching outfits must not stall the frame.
         private readonly Dictionary<GarmentDefinition, GameObject> bound = new Dictionary<GarmentDefinition, GameObject>();
         private readonly Dictionary<GarmentSlot, GarmentDefinition> worn = new Dictionary<GarmentSlot, GarmentDefinition>();
-        private readonly HashSet<GarmentSlot> hiddenSlots = new HashSet<GarmentSlot>();
         private BodySkinIndex bodyIndex;
+        private bool dressed = true;
 
         public event Action<GarmentSlot, GarmentDefinition> Changed;
 
@@ -88,7 +88,7 @@ namespace Garment.Wardrobe
                 bound[definition] = instance;
             }
 
-            instance.SetActive(!hiddenSlots.Contains(definition.Slot));
+            instance.SetActive(dressed);
             if (definition.Slot == GarmentSlot.Top)
                 instance.transform.localScale = new Vector3(topFitScale, 1f, topFitScale);
             worn[definition.Slot] = definition;
@@ -96,17 +96,21 @@ namespace Garment.Wardrobe
         }
 
         /// <summary>
-        /// Show or hide whatever a slot is wearing without unbinding it. Hiding is free and
-        /// instant; the worn state stays, so the garment reappears the moment the slot is shown.
+        /// Whether the outfit is actually on show. Nothing is unbound when it comes off —
+        /// binding costs hundreds of milliseconds, and what is worn does not change — so the
+        /// clothes can come back the instant tracking is trustworthy again.
         /// </summary>
-        public void SetSlotVisible(GarmentSlot slot, bool visible)
+        public bool Dressed
         {
-            bool changed = visible ? hiddenSlots.Remove(slot) : hiddenSlots.Add(slot);
-            if (!changed) return;
-
-            if (worn.TryGetValue(slot, out var definition) &&
-                bound.TryGetValue(definition, out var instance) && instance != null)
-                instance.SetActive(visible);
+            get => dressed;
+            set
+            {
+                if (dressed == value) return;
+                dressed = value;
+                foreach (var definition in worn.Values)
+                    if (bound.TryGetValue(definition, out var instance) && instance != null)
+                        instance.SetActive(dressed);
+            }
         }
 
         public void Remove(GarmentSlot slot)

@@ -74,21 +74,11 @@ namespace Garment.Tracking
         public void ApplyTo(BodyRig target, float deltaTime)
         {
             if (target == null || provider == null || !provider.HasPose) return;
-            ApplyFrame(target, provider.LatestFrame, deltaTime, provider.Coverage);
+            ApplyFrame(target, provider.LatestFrame, deltaTime);
         }
 
-        /// <summary>
-        /// Pose the rig from a frame supplied directly, bypassing the live tracker. A lone frame
-        /// has no history to debounce, so its own visibility decides the coverage.
-        /// </summary>
+        /// <summary>Pose the rig from a frame supplied directly, bypassing the live tracker.</summary>
         public void ApplyFrame(BodyRig target, PoseFrame frame, float deltaTime)
-        {
-            if (!frame.IsValid) return;
-            ApplyFrame(target, frame, deltaTime,
-                frame.HasVisibleLowerBody(visibilityThreshold) ? BodyCoverage.FullBody : BodyCoverage.UpperBody);
-        }
-
-        public void ApplyFrame(BodyRig target, PoseFrame frame, float deltaTime, BodyCoverage coverage)
         {
             if (target == null || !frame.IsValid) return;
             if (!captured) CaptureBindPose();
@@ -101,10 +91,8 @@ namespace Garment.Tracking
             AimRoot(target, hipCentre, shoulderCentre);
             AimBone(target, BodyLandmark.Spine, hipCentre, shoulderCentre, 1f);
 
-            bool lowerBodyVisible = coverage == BodyCoverage.FullBody;
             for (int i = 0; i < Aims.Length; i++)
             {
-                if (!lowerBodyVisible && i < 4) continue;
                 var (bone, from, to) = Aims[i];
                 AimBone(target, bone, Position(from), Position(to),
                     Mathf.Min(frame.VisibilityOf(from), frame.VisibilityOf(to)));

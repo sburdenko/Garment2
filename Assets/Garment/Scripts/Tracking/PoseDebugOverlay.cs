@@ -61,7 +61,7 @@ namespace Garment.Tracking
 
             var rect = FeedRect();
             bool mirrored = provider.Mirrored;
-            bool lowerBodyVisible = provider.Coverage == BodyCoverage.FullBody;
+            bool lowerBodyVisible = frame.HasVisibleLowerBody(visibilityThreshold);
 
             GUI.color = boneColour;
             for (int i = 0; i < Bones.Length; i++)

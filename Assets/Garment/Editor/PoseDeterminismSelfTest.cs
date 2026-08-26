@@ -92,7 +92,7 @@ namespace Garment.EditorTools
         private static void Settle(TrackedPoseSource source, BodyRig rig, PoseFrame frame)
         {
             for (int i = 0; i < SettleFrames; i++)
-                source.ApplyFrame(rig, frame, DeltaTime, BodyCoverage.FullBody);
+                source.ApplyFrame(rig, frame, DeltaTime);
         }
 
         /// <summary>A plain standing figure in metres, hips at the origin, optionally reaching up.</summary>

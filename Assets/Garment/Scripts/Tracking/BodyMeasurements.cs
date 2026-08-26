@@ -19,18 +19,9 @@ namespace Garment.Tracking
         /// <summary>Silhouette width at the hips divided by the bone width there. 0 = not measured.</summary>
         public readonly float HipGirthRatio;
 
-        /// <summary>
-        /// How much of the body these numbers actually come from. The leg lengths are always
-        /// populated — the model reports leg landmarks even when the legs are out of frame —
-        /// so this is the only thing that says whether they mean anything.
-        /// </summary>
-        public readonly BodyCoverage Coverage;
-
         public BodyMeasurements(float shoulderWidth, float torsoLength, float upperArm, float lowerArm,
-                                float upperLeg, float lowerLeg, float hipWidth, float hipGirthRatio = 0f,
-                                BodyCoverage coverage = BodyCoverage.FullBody)
+                                float upperLeg, float lowerLeg, float hipWidth, float hipGirthRatio = 0f)
         {
-            Coverage = coverage;
             ShoulderWidth = shoulderWidth;
             TorsoLength = torsoLength;
             UpperArm = upperArm;
@@ -42,19 +33,14 @@ namespace Garment.Tracking
         }
 
         public BodyMeasurements WithGirth(float ratio) => new BodyMeasurements(
-            ShoulderWidth, TorsoLength, UpperArm, LowerArm, UpperLeg, LowerLeg, HipWidth, ratio, Coverage);
+            ShoulderWidth, TorsoLength, UpperArm, LowerArm, UpperLeg, LowerLeg, HipWidth, ratio);
 
-        /// <summary>The person's torso length per unit of shoulder width — a proportion that
-        /// holds still while the hip landmark, out at the edge of a waist-up frame, does not.</summary>
-        public float TorsoPerShoulder => ShoulderWidth > 1e-3f ? TorsoLength / ShoulderWidth : 0f;
-
-        /// <summary>Legs are only judged when they were actually seen; otherwise they are noise.</summary>
         public bool IsPlausible =>
             ShoulderWidth > 0.15f && ShoulderWidth < 0.8f &&
             TorsoLength > 0.2f && TorsoLength < 1f &&
-            (Coverage != BodyCoverage.FullBody || (UpperLeg > 0.15f && LowerLeg > 0.15f));
+            UpperLeg > 0.15f && LowerLeg > 0.15f;
 
-        public static BodyMeasurements FromFrame(PoseFrame frame, BodyCoverage coverage = BodyCoverage.FullBody)
+        public static BodyMeasurements FromFrame(PoseFrame frame)
         {
             var hipCentre = frame.Midpoint(PoseLandmark.LeftHip, PoseLandmark.RightHip);
             var shoulderCentre = frame.Midpoint(PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder);
@@ -70,8 +56,7 @@ namespace Garment.Tracking
                                Distance(frame, PoseLandmark.RightHip, PoseLandmark.RightKnee)),
                 lowerLeg: Mean(Distance(frame, PoseLandmark.LeftKnee, PoseLandmark.LeftAnkle),
                                Distance(frame, PoseLandmark.RightKnee, PoseLandmark.RightAnkle)),
-                hipWidth: Distance(frame, PoseLandmark.LeftHip, PoseLandmark.RightHip),
-                coverage: coverage);
+                hipWidth: Distance(frame, PoseLandmark.LeftHip, PoseLandmark.RightHip));
         }
 
         /// <summary>Running average, so a calibration can settle over several frames.</summary>
@@ -85,12 +70,7 @@ namespace Garment.Tracking
             Mathf.Lerp(HipWidth, other.HipWidth, weight),
             other.HipGirthRatio > 0f && HipGirthRatio > 0f
                 ? Mathf.Lerp(HipGirthRatio, other.HipGirthRatio, weight)
-                : Mathf.Max(HipGirthRatio, other.HipGirthRatio),
-            // Blending an upper-body sample into a full-body one leaves legs that were never
-            // seen; the result is only as complete as its least complete part.
-            Coverage == BodyCoverage.FullBody && other.Coverage == BodyCoverage.FullBody
-                ? BodyCoverage.FullBody
-                : BodyCoverage.UpperBody);
+                : Mathf.Max(HipGirthRatio, other.HipGirthRatio));
 
         private static float Distance(PoseFrame frame, PoseLandmark a, PoseLandmark b) =>
             Vector3.Distance(frame.WorldOf(a), frame.WorldOf(b));
@@ -100,6 +80,6 @@ namespace Garment.Tracking
         public override string ToString() =>
             $"shoulders={ShoulderWidth:0.000} torso={TorsoLength:0.000} upperArm={UpperArm:0.000} " +
             $"lowerArm={LowerArm:0.000} upperLeg={UpperLeg:0.000} lowerLeg={LowerLeg:0.000} hips={HipWidth:0.000} " +
-            $"girthRatio={HipGirthRatio:0.00} from={Coverage}";
+            $"girthRatio={HipGirthRatio:0.00}";
     }
 }

@@ -9,9 +9,9 @@ namespace Garment.EditorTools
     /// Exercises the coverage debounce and the One Euro filter on synthetic sequences.
     /// Both are pure state machines, so their timing contract can be checked exactly.
     /// </summary>
-    public static class CoverageSelfTest
+    public static class ReadinessSelfTest
     {
-        [MenuItem("Garment/Test Coverage And Filtering")]
+        [MenuItem("Garment/Test Readiness And Filtering")]
         public static void Run()
         {
             Debug.Log(RunAndReport());
@@ -19,7 +19,7 @@ namespace Garment.EditorTools
 
         public static string RunAndReport()
         {
-            var report = new StringBuilder("Coverage self-test:\n");
+            var report = new StringBuilder("Readiness self-test:\n");
             int failures = 0;
 
             void Check(string name, bool passed)
@@ -28,7 +28,7 @@ namespace Garment.EditorTools
                 report.AppendLine($"  {(passed ? "PASS" : "FAIL")} {name}");
             }
 
-            TestCoverageTracker(Check);
+            TestReadiness(Check);
             TestOneEuroFilter(Check);
             TestRoiFraming(Check);
 
@@ -36,44 +36,43 @@ namespace Garment.EditorTools
             return report.ToString();
         }
 
-        private static void TestCoverageTracker(System.Action<string, bool> check)
+        private static void TestReadiness(System.Action<string, bool> check)
         {
-            var tracker = new BodyCoverageTracker(promoteSeconds: 0.5f, demoteSeconds: 0.3f);
+            var tracker = new BodyReadinessTracker(readySeconds: 0.6f, lostSeconds: 0.25f);
 
-            check("starts at None", tracker.Coverage == BodyCoverage.None);
+            check("starts undressed", !tracker.IsReady);
 
-            check("first full-body detection is trusted immediately",
-                tracker.Update(hasPose: true, rawFullBody: true, time: 0f) == BodyCoverage.FullBody);
+            check("a single good frame is not enough to dress",
+                !tracker.Update(true, 0f));
 
-            check("a 0.1s lower-body dropout does not demote",
-                Feed(tracker, raw: false, from: 0.05f, to: 0.15f) == BodyCoverage.FullBody);
+            check("half a second of a good body is still not enough",
+                !Feed(tracker, good: true, from: 0.05f, to: 0.5f));
 
-            check("recovery cancels the dropout",
-                Feed(tracker, raw: true, from: 0.2f, to: 0.4f) == BodyCoverage.FullBody);
+            check("0.6s of a steadily seen whole body dresses",
+                Feed(tracker, good: true, from: 0.55f, to: 0.7f));
 
-            check("a sustained dropout demotes to UpperBody",
-                Feed(tracker, raw: false, from: 0.45f, to: 0.9f) == BodyCoverage.UpperBody);
+            check("a single bad frame does not undress",
+                tracker.Update(false, 0.75f));
 
-            check("a 0.2s glimpse of the legs does not promote",
-                Feed(tracker, raw: true, from: 1f, to: 1.2f) == BodyCoverage.UpperBody &&
-                tracker.Update(true, false, 1.25f) == BodyCoverage.UpperBody);
+            check("recovering keeps the clothes on",
+                Feed(tracker, good: true, from: 0.8f, to: 1f));
 
-            check("legs steadily visible for 0.5s promote to FullBody",
-                Feed(tracker, raw: true, from: 1.3f, to: 1.85f) == BodyCoverage.FullBody);
+            check("a quarter second of bad tracking undresses",
+                !Feed(tracker, good: false, from: 1.05f, to: 1.35f));
 
-            check("losing the pose resets to None",
-                tracker.Update(hasPose: false, rawFullBody: false, time: 2f) == BodyCoverage.None);
+            check("dressing again has to be earned from scratch",
+                !Feed(tracker, good: true, from: 1.4f, to: 1.8f) &&
+                Feed(tracker, good: true, from: 1.85f, to: 2.1f));
 
-            check("reacquiring an upper-body pose starts at UpperBody",
-                tracker.Update(true, false, 2.1f) == BodyCoverage.UpperBody);
+            tracker.Reset();
+            check("reset undresses", !tracker.IsReady);
         }
 
-        private static BodyCoverage Feed(BodyCoverageTracker tracker, bool raw, float from, float to)
+        private static bool Feed(BodyReadinessTracker tracker, bool good, float from, float to)
         {
-            var coverage = tracker.Coverage;
-            for (float t = from; t <= to + 1e-4f; t += 0.05f)
-                coverage = tracker.Update(hasPose: true, rawFullBody: raw, time: t);
-            return coverage;
+            bool ready = tracker.IsReady;
+            for (float t = from; t <= to + 1e-4f; t += 0.05f) ready = tracker.Update(good, t);
+            return ready;
         }
 
         private static void TestOneEuroFilter(System.Action<string, bool> check)

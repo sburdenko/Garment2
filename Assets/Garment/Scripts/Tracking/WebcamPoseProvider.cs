@@ -17,13 +17,13 @@ namespace Garment.Tracking
         [SerializeField, Range(0f, 1f)] private float poseHoldSeconds = 0.3f;
         [SerializeField] private BackendType backend = BackendType.GPUCompute;
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
-        [Tooltip("Legs must be steadily visible this long before the state flips to full body.")]
-        [SerializeField, Range(0f, 2f)] private float fullBodyPromoteSeconds = 0.5f;
-        [Tooltip("Legs must be steadily gone this long before the state drops to upper body.")]
-        [SerializeField, Range(0f, 2f)] private float fullBodyDemoteSeconds = 0.3f;
+        [Tooltip("The whole body must be steadily in shot this long before we dress it.")]
+        [SerializeField, Range(0f, 3f)] private float readyAfterSeconds = 0.6f;
+        [Tooltip("Once tracking has been this poor for this long, the clothes come off again.")]
+        [SerializeField, Range(0f, 2f)] private float undressAfterSeconds = 0.25f;
 
         private PoseTracker tracker;
-        private BodyCoverageTracker coverageTracker;
+        private BodyReadinessTracker readiness;
         private float nextInferenceTime;
         private float lastPoseTime = float.NegativeInfinity;
 
@@ -32,10 +32,10 @@ namespace Garment.Tracking
         public bool HasPose { get; private set; }
 
         /// <summary>
-        /// Debounced view of how much of the person is in frame. Everything that shows or hides
-        /// by body region must key off this one state, or the regions flicker out of sync.
+        /// Debounced: the tracker is holding a whole body squarely in frame and can be dressed.
+        /// Everything that depends on tracking being trustworthy keys off this one flag.
         /// </summary>
-        public BodyCoverage Coverage => coverageTracker?.Coverage ?? BodyCoverage.None;
+        public bool IsBodyReady => readiness != null && readiness.IsReady;
 
         public FrameSource Feed => feed;
 
@@ -53,7 +53,7 @@ namespace Garment.Tracking
             HasPose = false;
             lastPoseTime = float.NegativeInfinity;
             tracker?.Reset();
-            coverageTracker?.Reset();
+            readiness?.Reset();
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Garment.Tracking
             runtimeBackend = BackendType.GPUPixel;
 #endif
             tracker = new PoseTracker(landmarker, cropShader, runtimeBackend) { Mirrored = mirrored };
-            coverageTracker = new BodyCoverageTracker(fullBodyPromoteSeconds, fullBodyDemoteSeconds);
+            readiness = new BodyReadinessTracker(readyAfterSeconds, undressAfterSeconds);
         }
 
         private void OnDestroy()
@@ -117,8 +117,8 @@ namespace Garment.Tracking
 
             if (Time.unscaledTime >= nextInferenceTime) RunInference();
 
-            coverageTracker.Update(HasPose,
-                HasPose && LatestFrame.IsValid && LatestFrame.HasVisibleLowerBody(visibilityThreshold),
+            readiness.Update(
+                HasPose && LatestFrame.IsValid && LatestFrame.HasVisibleWholeBody(visibilityThreshold),
                 Time.unscaledTime);
         }
 
@@ -128,7 +128,7 @@ namespace Garment.Tracking
             nextInferenceTime = Time.unscaledTime + 1f / inferencesPerSecond;
 
             tracker.Mirrored = mirrored;
-            tracker.LowerBodyTrusted = Coverage != BodyCoverage.UpperBody;
+            tracker.LowerBodyTrusted = IsBodyReady;
             if (tracker.TryTrack(feed.Texture, out var frame))
             {
                 LatestFrame = frame;

@@ -46,6 +46,21 @@ namespace Garment.Tracking
 
         public float VisibilityOf(PoseLandmark landmark) => Visibility[(int)landmark];
 
+        /// <summary>
+        /// True when the whole person is properly in shot: torso squarely tracked and both legs
+        /// confidently inside the frame. This is the bar for dressing someone.
+        /// </summary>
+        public bool HasVisibleWholeBody(float visibilityThreshold)
+        {
+            if (VisibilityOf(PoseLandmark.LeftShoulder) < visibilityThreshold ||
+                VisibilityOf(PoseLandmark.RightShoulder) < visibilityThreshold ||
+                VisibilityOf(PoseLandmark.LeftHip) < visibilityThreshold ||
+                VisibilityOf(PoseLandmark.RightHip) < visibilityThreshold)
+                return false;
+
+            return HasVisibleLowerBody(visibilityThreshold);
+        }
+
         /// <summary>True only when both legs are confidently observed inside the camera frame.</summary>
         public bool HasVisibleLowerBody(float visibilityThreshold)
         {
