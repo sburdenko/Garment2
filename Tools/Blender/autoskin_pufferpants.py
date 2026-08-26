@@ -26,7 +26,9 @@ SLIM_FADE_TOP = 0.95
 # Authored waistband tops out at 1.163 — ribcage height. Squashed vertically
 # about the hem so the waist lands at 1.05 and the hem stays on the floor.
 WAIST_TARGET = 1.05
-HEM_Z = 0.02
+# Hem raised off the floor to the ankle: pooling length has nowhere to go when a
+# leg folds (yoga tree pose) and juts out past the knee instead of hanging.
+HEM_Z = 0.11
 
 
 def to_blender(position):
@@ -126,7 +128,7 @@ def assign_leg_weights(mesh_object):
         height = vertex.co.z
         side = sides[vertex.index]
         hip_weight = smoothstep(0.75, 1.03, height)
-        lower_leg = 1.0 - smoothstep(0.30, 0.55, height)
+        lower_leg = 1.0 - smoothstep(0.38, 0.50, height)
         leg_weight = 1.0 - hip_weight
         weights = {
             "Hips": hip_weight,
@@ -158,14 +160,35 @@ bpy.ops.object.modifier_apply(modifier=decimate.name)
 print("DECIMATED_TO", len(mesh_object.data.vertices))
 
 source_waist = max(v.co.z for v in mesh_object.data.vertices)
-squash = (WAIST_TARGET - HEM_Z) / (source_waist - HEM_Z)
+source_hem = min(v.co.z for v in mesh_object.data.vertices)
+squash = (WAIST_TARGET - HEM_Z) / (source_waist - source_hem)
 for vertex in mesh_object.data.vertices:
-    vertex.co.z = HEM_Z + (vertex.co.z - HEM_Z) * squash
+    vertex.co.z = HEM_Z + (vertex.co.z - source_hem) * squash
 
 for vertex in mesh_object.data.vertices:
     shrink = SLIM + (WAIST_WIDEN - SLIM) * smoothstep(SLIM_FADE_BOTTOM, SLIM_FADE_TOP, vertex.co.z)
     vertex.co.x *= shrink
     vertex.co.y *= shrink
+mesh_object.data.update()
+
+# Linear blend skinning cuts the corner on a folded knee — the chord of the bend
+# passes inside the kneecap and the knee pokes through the fabric. Thickening
+# the tube around knee height keeps the chord outside the knee.
+KNEE_INFLATE = 0.03
+LEG_AXIS_X = 0.10
+for vertex in mesh_object.data.vertices:
+    taper = smoothstep(0.25, 0.38, vertex.co.z) * (1.0 - smoothstep(0.52, 0.65, vertex.co.z))
+    if taper <= 0.0:
+        continue
+    axis_x = LEG_AXIS_X if vertex.co.x >= 0.0 else -LEG_AXIS_X
+    dx = vertex.co.x - axis_x
+    dy = vertex.co.y
+    length = (dx * dx + dy * dy) ** 0.5
+    if length < 1e-5:
+        continue
+    push = KNEE_INFLATE * taper / length
+    vertex.co.x += dx * push
+    vertex.co.y += dy * push
 mesh_object.data.update()
 
 with SKELETON.open(encoding="utf-8") as stream:
