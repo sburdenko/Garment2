@@ -18,10 +18,12 @@ OUTPUT = PROJECT_ROOT / "Assets/Garment/Models/Skirt/Skirt_Rigged.fbx"
 # CLO authored the band at 1.15-1.24 - CHEST height on this skeleton (Spine 1.02,
 # Chest 1.20). Matching band widths made that look deliberate, but height is what
 # decides where a skirt sits: dropped so the band top lands at the natural waist.
-WAISTBAND_DROP = 0.14
+WAISTBAND_DROP = 0.19
 BAND_TOP = 0.91      # fully hips above this height
 HEM_TOP = 0.48       # leg influence fades in from here down
-HEM_LEG_WEIGHT = 0.55  # at the hem: this much leg, the rest stays with the pelvis
+# A flared skirt HANGS: give the legs too much say and a leg swung out in a wide
+# stance hikes the hem up its side instead of the fabric draping over it.
+HEM_LEG_WEIGHT = 0.30  # at the hem: this much leg, the rest stays with the pelvis
 CENTRE_BLEND = 0.06  # metres over which left and right leg influence crossfades
 
 
