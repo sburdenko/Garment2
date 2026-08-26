@@ -15,10 +15,14 @@ OUTPUT = PROJECT_ROOT / "Assets/Garment/Models/PufferPants/PufferPants_Rigged.fb
 # wardrobe combined, and binding cost scales with vertex count. Puffer fabric
 # has no detail that survives past this budget anyway.
 DECIMATE_RATIO = 0.15
-# Oversized cut, slimmed towards the centre and fading out at the waistband.
+# Oversized cut: legs slimmed towards the centre, but the seat and waistband
+# keep their width — slimming reached the seat and cinched the waist. The band
+# itself opens slightly: it was sewn for a narrower avatar than the mannequin
+# (halfwidth 0.163 against a pelvis of ~0.175).
 SLIM = 0.72
-SLIM_FADE_BOTTOM = 0.90
-SLIM_FADE_TOP = 1.03
+WAIST_WIDEN = 1.08
+SLIM_FADE_BOTTOM = 0.60
+SLIM_FADE_TOP = 0.95
 # Authored waistband tops out at 1.163 — ribcage height. Squashed vertically
 # about the hem so the waist lands at 1.05 and the hem stays on the floor.
 WAIST_TARGET = 1.05
@@ -159,7 +163,7 @@ for vertex in mesh_object.data.vertices:
     vertex.co.z = HEM_Z + (vertex.co.z - HEM_Z) * squash
 
 for vertex in mesh_object.data.vertices:
-    shrink = SLIM + (1.0 - SLIM) * smoothstep(SLIM_FADE_BOTTOM, SLIM_FADE_TOP, vertex.co.z)
+    shrink = SLIM + (WAIST_WIDEN - SLIM) * smoothstep(SLIM_FADE_BOTTOM, SLIM_FADE_TOP, vertex.co.z)
     vertex.co.x *= shrink
     vertex.co.y *= shrink
 mesh_object.data.update()
