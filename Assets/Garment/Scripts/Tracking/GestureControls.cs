@@ -19,6 +19,8 @@ namespace Garment.Tracking
         [Tooltip("Shortest gap between two gestures firing.")]
         [SerializeField, Range(0f, 10f)] private float repeatSeconds = 1.5f;
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.6f;
+        [Tooltip("Off for now: the right-hand gesture is recognised but takes no picture.")]
+        [SerializeField] private bool snapshotsEnabled;
         [SerializeField] private bool showHints = true;
 
         private GestureRecognizer recognizer;
@@ -46,7 +48,8 @@ namespace Garment.Tracking
             switch (fired)
             {
                 case PoseGesture.RightHandRaised:
-                    if (snapshots != null && provider.Feed is WebcamFeed) snapshots.Request();
+                    if (snapshotsEnabled && snapshots != null && provider.Feed is WebcamFeed)
+                        snapshots.Request();
                     break;
                 case PoseGesture.LeftHandRaised:
                     if (ui != null) ui.Visible = !ui.Visible;
@@ -58,7 +61,7 @@ namespace Garment.Tracking
         {
             if (!showHints || provider == null || snapshots == null) return;
 
-            if (snapshots.IsCountingDown)
+            if (snapshotsEnabled && snapshots.IsCountingDown)
             {
                 DrawCentred(snapshots.SecondsRemaining.ToString(), 140);
                 return;

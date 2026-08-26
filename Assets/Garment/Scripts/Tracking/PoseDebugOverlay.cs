@@ -30,7 +30,7 @@ namespace Garment.Tracking
         [SerializeField] private float pointRadius = 5f;
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
         [SerializeField] private bool showRoi = true;
-        [SerializeField] private bool visible;
+        [SerializeField] private bool visible = true;
 
         private Material lineMaterial;
 

@@ -61,6 +61,7 @@ namespace Garment.EditorTools
 
             var overlay = trackingObject.AddComponent<PoseDebugOverlay>();
             Assign(overlay, "provider", provider);
+            AssignBool(overlay, "visible", true);
 
             // The display is built before the tracker exists, so it gets wired up here.
             Assign(display, "provider", provider);
@@ -195,6 +196,13 @@ namespace Garment.EditorTools
             var display = imageObject.AddComponent<WebcamDisplay>();
             Assign(display, "feed", feed);
             return display;
+        }
+
+        private static void AssignBool(Object target, string field, bool value)
+        {
+            var serialized = new SerializedObject(target);
+            serialized.FindProperty(field).boolValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void Assign(Object component, string field, Object value)

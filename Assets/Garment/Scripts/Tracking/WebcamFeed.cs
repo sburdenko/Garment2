@@ -57,7 +57,14 @@ namespace Garment.Tracking
             }
 
             int index = Mathf.Clamp(deviceIndex, 0, devices.Length - 1);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Asking the browser for an exact size gets the stream scaled into a texture of
+            // THAT shape, so a 4:3 webcam handed a 16:9 request comes out stretched wide and
+            // no amount of letterboxing downstream can undo it. Take what the camera gives.
+            texture = new WebCamTexture(devices[index].name);
+#else
             texture = new WebCamTexture(devices[index].name, requestedWidth, requestedHeight, requestedFps);
+#endif
             texture.Play();
 
             if (!texture.isPlaying)
