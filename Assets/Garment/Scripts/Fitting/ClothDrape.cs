@@ -14,6 +14,12 @@ namespace Garment.Fitting
     /// </summary>
     public sealed class ClothDrape : MonoBehaviour
     {
+        /// <summary>
+        /// One switch for all cloth simulation, off by default: the panel toggles it so the
+        /// drape can be judged against plain skinning live. Off returns the exact skinned mesh.
+        /// </summary>
+        public static bool Active;
+
         [Tooltip("Below this bind height the fabric is free to drape; above it stays pinned.")]
         [SerializeField] private float pinAbove = 0.95f;
         [Tooltip("How far, in metres, the hem may stray from its skinned position.")]
@@ -120,6 +126,15 @@ namespace Garment.Fitting
         private void LateUpdate()
         {
             if (rig == null || cloth == null) return;
+
+            if (cloth.enabled != Active)
+            {
+                cloth.enabled = Active;
+                // A sim waking up must start from the current skinned pose, not from
+                // wherever the garment was when it went to sleep.
+                if (Active) cloth.ClearTransformMotion();
+            }
+            if (!Active) return;
 
             var rootPosition = rig.transform.position;
             if ((rootPosition - lastRootPosition).magnitude > teleportDistance)

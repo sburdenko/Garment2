@@ -138,6 +138,7 @@ namespace Garment.Tracking
 
             if (overlay != null)
                 overlay.Visible = GUILayout.Toggle(overlay.Visible, " Show skeleton");
+            Fitting.ClothDrape.Active = GUILayout.Toggle(Fitting.ClothDrape.Active, " Cloth drape");
         }
 
         private void DrawCalibration()
