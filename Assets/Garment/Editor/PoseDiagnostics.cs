@@ -10,8 +10,8 @@ namespace Garment.EditorTools
     /// <summary>Dumps every model output and the image fed to it, for wiring up the tensors.</summary>
     public static class PoseDiagnostics
     {
-        private const string LandmarkerPath = "Assets/Garment/Models/pose_landmarks_detector_full.onnx";
-        private const string DumpPath = "Assets/Garment/Models/_selftest_input.png";
+        private const string LandmarkerPath = "Assets/Garment/Tracking/pose_landmarks_detector_full.onnx";
+        private static string DumpPath => DiagnosticsOutput.PathFor("PoseSelfTestInput.png");
         private const int InputSize = 256;
 
         public static string Run()
@@ -106,7 +106,6 @@ namespace Garment.EditorTools
             File.WriteAllBytes(DumpPath, texture.EncodeToPNG());
             Object.DestroyImmediate(texture);
             RenderTexture.active = previous;
-            AssetDatabase.ImportAsset(DumpPath, ImportAssetOptions.ForceUpdate);
         }
     }
 }

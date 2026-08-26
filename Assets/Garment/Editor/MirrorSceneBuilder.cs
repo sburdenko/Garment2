@@ -14,8 +14,8 @@ namespace Garment.EditorTools
     public static class MirrorSceneBuilder
     {
         private const string ScenePath = "Assets/Garment/Scenes/FittingRoom_Mirror.unity";
-        private const string LandmarkerPath = "Assets/Garment/Models/pose_landmarks_detector_full.onnx";
-        private const string CataloguePath = "Assets/Garment/Data/GarmentCatalogue.asset";
+        private const string LandmarkerPath = "Assets/Garment/Tracking/pose_landmarks_detector_full.onnx";
+        private const string CataloguePath = "Assets/Garment/Garments/GarmentCatalogue.asset";
 
         [MenuItem("Garment/Build Mirror Scene")]
         public static void Build()
@@ -136,7 +136,7 @@ namespace Garment.EditorTools
         private static Texture2D[] FindPhotos()
         {
             var photos = new System.Collections.Generic.List<Texture2D>();
-            foreach (var guid in AssetDatabase.FindAssets("t:texture2D", new[] { "Assets/Garment/TestPhotos" }))
+            foreach (var guid in AssetDatabase.FindAssets("t:texture2D", new[] { "Assets/Garment/Tracking/ReferencePhotos" }))
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
                 var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);

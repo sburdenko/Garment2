@@ -30,6 +30,7 @@ namespace Garment.Tracking
         [SerializeField] private bool faceCamera;
 
         private readonly Dictionary<BodyLandmark, Vector3> bindDirections = new Dictionary<BodyLandmark, Vector3>();
+        private readonly Dictionary<BodyLandmark, Quaternion> bindLocalRotations = new Dictionary<BodyLandmark, Quaternion>();
         private readonly Vector3[] filtered = new Vector3[PoseFrame.LandmarkCount];
         private OneEuroFilterVector3[] filters;
 
@@ -124,16 +125,35 @@ namespace Garment.Tracking
             hips.rotation = Quaternion.LookRotation(forward.normalized, up.normalized) * bindRootRotation;
         }
 
+        /// <summary>
+        /// Turns a bone to point along a tracked segment, starting from its REST orientation
+        /// rather than from wherever it is now.
+        ///
+        /// A direction pins down only two of the bone's three degrees of freedom; the roll about
+        /// its own axis is left over. Turning the bone by the short way round from its current
+        /// rotation therefore keeps whatever roll it had, and every frame adds a little more —
+        /// worst when the target jumps, as it does when the photo changes. The sleeve is skinned
+        /// to that bone and visibly winds around the arm. Aiming from rest makes the result a
+        /// function of the tracked pose alone, so nothing can accumulate.
+        ///
+        /// Rest means rest *this frame*: the chain is aimed parents first, so a bone's rest
+        /// orientation is its parent's current rotation carrying the bone's bind-pose local one.
+        /// </summary>
         private void AimBone(BodyRig target, BodyLandmark landmark, Vector3 from, Vector3 to)
         {
             var bone = target.GetBone(landmark);
-            if (bone == null || !bindDirections.TryGetValue(landmark, out var bindDirection)) return;
+            if (bone == null ||
+                !bindDirections.TryGetValue(landmark, out var bindDirection) ||
+                !bindLocalRotations.TryGetValue(landmark, out var bindLocalRotation)) return;
 
             var wanted = to - from;
             if (wanted.sqrMagnitude < 1e-6f) return;
 
-            var current = bone.TransformDirection(bindDirection);
-            bone.rotation = Quaternion.FromToRotation(current, wanted.normalized) * bone.rotation;
+            var restRotation = bone.parent != null
+                ? bone.parent.rotation * bindLocalRotation
+                : bindLocalRotation;
+
+            bone.rotation = Quaternion.FromToRotation(restRotation * bindDirection, wanted.normalized) * restRotation;
         }
 
         /// <summary>Landmarks jitter frame to frame; the avatar must not.</summary>
@@ -168,7 +188,16 @@ namespace Garment.Tracking
         {
             if (rig == null) return;
             bindDirections.Clear();
+            bindLocalRotations.Clear();
 
+            // Measured with the skeleton put back into bind pose: a scene saved while posed
+            // would otherwise be recorded as rest, and every bone would aim from a lie.
+            rig.WhileInBindPose(RecordBindPose);
+            captured = bindDirections.Count > 0;
+        }
+
+        private void RecordBindPose()
+        {
             Record(BodyLandmark.Spine, BodyLandmark.Chest);
             Record(BodyLandmark.LeftUpperLeg, BodyLandmark.LeftKnee);
             Record(BodyLandmark.LeftKnee, BodyLandmark.LeftAnkle);
@@ -181,8 +210,6 @@ namespace Garment.Tracking
 
             var hips = rig.GetBone(BodyLandmark.Hips);
             if (hips != null) bindRootRotation = hips.rotation;
-
-            captured = bindDirections.Count > 0;
         }
 
         private void Record(BodyLandmark bone, BodyLandmark child)
@@ -195,6 +222,7 @@ namespace Garment.Tracking
             if (direction.sqrMagnitude < 1e-8f) return;
 
             bindDirections[bone] = boneTransform.InverseTransformDirection(direction.normalized);
+            bindLocalRotations[bone] = boneTransform.localRotation;
         }
     }
 }

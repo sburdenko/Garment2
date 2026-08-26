@@ -15,8 +15,8 @@ namespace Garment.EditorTools
     /// </summary>
     public static class MirrorSelfTest
     {
-        private const string LandmarkerPath = "Assets/Garment/Models/pose_landmarks_detector_full.onnx";
-        private const string OutputPath = "Assets/Garment/Models/_mirror_selftest.png";
+        private const string LandmarkerPath = "Assets/Garment/Tracking/pose_landmarks_detector_full.onnx";
+        private static string OutputPath => DiagnosticsOutput.PathFor("MirrorSelfTest.png");
         private const int TrackingPasses = 60;
 
         [MenuItem("Garment/Test Mirror On Photo")]
@@ -171,7 +171,7 @@ namespace Garment.EditorTools
                 foreach (var definition in wardrobe.Catalogue)
                     if (definition != null && definition.Slot == slot) { wanted = definition; break; }
 
-                var catalogue = AssetDatabase.LoadAssetAtPath<GarmentCatalogue>("Assets/Garment/Data/GarmentCatalogue.asset");
+                var catalogue = AssetDatabase.LoadAssetAtPath<GarmentCatalogue>("Assets/Garment/Garments/GarmentCatalogue.asset");
                 if (catalogue != null && catalogue.DefaultFor(slot) != null) wanted = catalogue.DefaultFor(slot);
                 if (wanted == null) continue;
 
@@ -270,7 +270,6 @@ namespace Garment.EditorTools
 
             Object.DestroyImmediate(texture);
             Object.DestroyImmediate(render);
-            AssetDatabase.ImportAsset(OutputPath, ImportAssetOptions.ForceUpdate);
         }
     }
 }

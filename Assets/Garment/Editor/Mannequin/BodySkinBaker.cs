@@ -12,9 +12,9 @@ namespace Garment.EditorTools.Mannequin
     /// </summary>
     public static class BodySkinBaker
     {
-        private const string DonorPath = "Assets/Garment/Prefabs/Mannequin.prefab";
-        private const string OutputFolder = "Assets/Garment/Prefabs";
-        public const string SkinnedBodyPath = OutputFolder + "/Mannequin_Skinned.prefab";
+        private const string DonorPath = "Assets/Garment/Avatar/Mannequin.prefab";
+        private const string OutputFolder = "Assets/Garment/Avatar";
+        public const string SkinnedBodyPath = OutputFolder + "/MannequinSkinned.prefab";
 
         [MenuItem("Assets/Garment/Skin As Body", true)]
         private static bool Validate() => Selection.activeObject is GameObject;

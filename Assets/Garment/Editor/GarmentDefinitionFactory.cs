@@ -9,7 +9,7 @@ namespace Garment.EditorTools
     /// <summary>Creates a GarmentDefinition from a selected model, guessing slot and submesh roles.</summary>
     public static class GarmentDefinitionFactory
     {
-        private const string DataFolder = "Assets/Garment/Data";
+        private const string DataFolder = "Assets/Garment/Garments";
 
         private static readonly string[] RigidKeywords =
             { "zipper", "button", "stopper", "slider", "puller", "rivet", "buckle", "snap", "eyelet", "hook" };
@@ -60,7 +60,7 @@ namespace Garment.EditorTools
             serialized.ApplyModifiedPropertiesWithoutUndo();
 
             if (!AssetDatabase.IsValidFolder(DataFolder))
-                AssetDatabase.CreateFolder("Assets/Garment", "Data");
+                AssetDatabase.CreateFolder("Assets/Garment", "Garments");
 
             string path = AssetDatabase.GenerateUniqueAssetPath($"{DataFolder}/{SafeName(model.name)}.asset");
             AssetDatabase.CreateAsset(definition, path);

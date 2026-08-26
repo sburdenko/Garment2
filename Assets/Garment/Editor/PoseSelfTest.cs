@@ -14,7 +14,7 @@ namespace Garment.EditorTools
     /// </summary>
     public static class PoseSelfTest
     {
-        private const string LandmarkerPath = "Assets/Garment/Models/pose_landmarks_detector_full.onnx";
+        private const string LandmarkerPath = "Assets/Garment/Tracking/pose_landmarks_detector_full.onnx";
         private const int RenderSize = 512;
 
         [MenuItem("Garment/Test Pose On Avatar")]

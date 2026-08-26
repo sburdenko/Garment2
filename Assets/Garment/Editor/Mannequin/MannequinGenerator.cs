@@ -11,10 +11,10 @@ namespace Garment.EditorTools.Mannequin
     /// </summary>
     public static class MannequinGenerator
     {
-        private const string PrefabPath = "Assets/Garment/Prefabs/Mannequin.prefab";
-        private const string MeshPath = "Assets/Garment/Prefabs/MannequinBody.asset";
-        private const string AvatarPath = "Assets/Garment/Prefabs/MannequinAvatar.asset";
-        private const string MaterialPath = "Assets/Garment/Prefabs/MannequinSkin.mat";
+        private const string PrefabPath = "Assets/Garment/Avatar/Mannequin.prefab";
+        private const string MeshPath = "Assets/Garment/Avatar/MannequinBody.asset";
+        private const string AvatarPath = "Assets/Garment/Avatar/MannequinAvatar.asset";
+        private const string MaterialPath = "Assets/Garment/Avatar/MannequinSkin.mat";
 
         [MenuItem("Garment/Generate Mannequin")]
         public static void Generate()

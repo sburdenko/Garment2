@@ -12,8 +12,8 @@ namespace Garment.EditorTools
     public static class SandboxSceneBuilder
     {
         private const string ScenePath = "Assets/Garment/Scenes/FittingRoom_Sandbox.unity";
-        private const string MannequinPath = "Assets/Garment/Prefabs/Mannequin.prefab";
-        private const string FloorMaterialPath = "Assets/Garment/Prefabs/SandboxFloor.mat";
+        private const string MannequinPath = "Assets/Garment/Avatar/Mannequin.prefab";
+        private const string FloorMaterialPath = "Assets/Garment/Materials/SandboxFloor.mat";
 
         [MenuItem("Garment/Build Sandbox Scene")]
         public static void Build()

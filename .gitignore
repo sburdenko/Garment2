@@ -19,3 +19,10 @@
 
 # OS
 .DS_Store
+
+# Diagnostic renders written by the Garment self-tests
+/Diagnostics/
+
+# Editor screenshots
+Assets/Screenshots/
+Assets/Screenshots.meta

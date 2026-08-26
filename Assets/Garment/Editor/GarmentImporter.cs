@@ -13,8 +13,8 @@ namespace Garment.EditorTools
     /// </summary>
     public static class GarmentImporter
     {
-        private const string CataloguePath = "Assets/Garment/Data/GarmentCatalogue.asset";
-        private const string DataFolder = "Assets/Garment/Data";
+        private const string CataloguePath = "Assets/Garment/Garments/GarmentCatalogue.asset";
+        private const string DataFolder = "Assets/Garment/Garments";
         private static readonly string[] ModelExtensions = { ".fbx", ".obj", ".glb", ".gltf", ".dae" };
 
         [MenuItem("Garment/Import Garments")]
@@ -67,7 +67,7 @@ namespace Garment.EditorTools
             if (catalogue == null)
             {
                 catalogue = ScriptableObject.CreateInstance<GarmentCatalogue>();
-                if (!AssetDatabase.IsValidFolder(DataFolder)) AssetDatabase.CreateFolder("Assets/Garment", "Data");
+                if (!AssetDatabase.IsValidFolder(DataFolder)) AssetDatabase.CreateFolder("Assets/Garment", "Garments");
                 AssetDatabase.CreateAsset(catalogue, CataloguePath);
             }
 

@@ -33,6 +33,13 @@ namespace Garment.Body
         /// </summary>
         public float ArmRadius { get; set; }
 
+        /// <summary>
+        /// Runs an action with the skeleton returned to the pose its bindposes were recorded
+        /// in. Anything that measures bones in order to fit or bind a garment must run here,
+        /// or the live pose is baked into the garment and then applied again by the skinning.
+        /// </summary>
+        public void WhileInBindPose(System.Action action) => BindPoseScope.Run(BodyMesh, action);
+
         public Transform Root => GetBone(BodyLandmark.Hips);
 
         /// <summary>Full height of the body mesh, crown to sole.</summary>
