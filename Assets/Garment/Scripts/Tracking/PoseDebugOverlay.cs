@@ -8,7 +8,8 @@ namespace Garment.Tracking
     /// </summary>
     public sealed class PoseDebugOverlay : MonoBehaviour
     {
-        private static readonly (PoseLandmark from, PoseLandmark to)[] Bones =
+        /// <summary>Also drawn onto saved snapshots, so the two views agree on what a skeleton is.</summary>
+        public static readonly (PoseLandmark from, PoseLandmark to)[] Bones =
         {
             (PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder),
             (PoseLandmark.LeftShoulder, PoseLandmark.LeftElbow),

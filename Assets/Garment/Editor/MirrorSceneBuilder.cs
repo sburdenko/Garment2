@@ -119,6 +119,8 @@ namespace Garment.EditorTools
 
             var snapshots = wardrobeObject.AddComponent<SnapshotCapture>();
             Assign(snapshots, "view", view);
+            Assign(snapshots, "provider", provider);
+            Assign(snapshots, "overlay", Object.FindFirstObjectByType<PoseDebugOverlay>());
 
             var gestures = wardrobeObject.AddComponent<GestureControls>();
             Assign(gestures, "provider", provider);

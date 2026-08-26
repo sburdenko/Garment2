@@ -3,9 +3,11 @@ using UnityEngine;
 namespace Garment.Tracking
 {
     /// <summary>
-    /// Hands the fitting room over to the person standing in it: raise a hand for a picture,
-    /// tilt your head to get the panel out of the way. Gestures are only read while the tracker
-    /// is holding a whole body, so a half-seen pose cannot trip anything.
+    /// Hands the fitting room over to the person standing in it: right hand up takes a picture,
+    /// left hand up toggles the panel. Gestures are only read while the tracker is holding a
+    /// whole body, so a half-seen pose cannot trip anything. Pictures only happen on the live
+    /// camera — a gallery photo cannot lower its raised arm for the countdown, and a snapshot
+    /// of a stock photo is not a snapshot of anyone.
     /// </summary>
     public sealed class GestureControls : MonoBehaviour
     {
@@ -39,16 +41,14 @@ namespace Garment.Tracking
                 return;
             }
 
-            float aspect = provider.Feed != null ? provider.Feed.AspectRatio : 1f;
-            var fired = recognizer.Update(provider.LatestFrame, aspect, visibilityThreshold, Time.unscaledTime);
+            var fired = recognizer.Update(provider.LatestFrame, visibilityThreshold, Time.unscaledTime);
 
             switch (fired)
             {
                 case PoseGesture.RightHandRaised:
-                case PoseGesture.LeftHandRaised:
-                    if (snapshots != null) snapshots.Request();
+                    if (snapshots != null && provider.Feed is WebcamFeed) snapshots.Request();
                     break;
-                case PoseGesture.HeadTilted:
+                case PoseGesture.LeftHandRaised:
                     if (ui != null) ui.Visible = !ui.Visible;
                     break;
             }
