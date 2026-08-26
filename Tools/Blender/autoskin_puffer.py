@@ -20,7 +20,8 @@ TEXTURE_FILES = {
 }
 ARM_ANGLE = math.radians(35.0)
 SHOULDER_LIFT = 0.0
-CUFF_LIFT = 0.11
+CUFF_LIFT = 0.06
+CUFF_EXTENSION = 0.015
 BODY_WIDTH_SCALE = 1.06
 BODY_LENGTH = 0.04
 DEPTH_SCALE = 1.5
@@ -141,6 +142,7 @@ def raise_weighted_sleeves(mesh_object, shoulders):
         lift = SHOULDER_LIFT + (CUFF_LIFT - SHOULDER_LIFT) * reach
         vertex.co = vertex.co.lerp(rotated, influence)
         vertex.co.z += lift * influence
+        vertex.co.x += (CUFF_EXTENSION if side == "Left" else -CUFF_EXTENSION) * reach * influence
         moved += 1
 
     mesh_object.data.update()
