@@ -124,6 +124,72 @@ def normalized_inverse_distances(point, segments):
     return [(name, weight / total) for name, weight in weighted]
 
 
+def measured_cap_droop(mesh_object, sleeve_mask):
+    """Slope of the cap sleeves' upper edge, radians below horizontal.
+
+    Measured from the mesh AFTER collar shaping and the global drop, because both
+    move the very vertices the angle is read from — a constant tuned on the raw
+    export would rectify by the wrong amount.
+    """
+    # The FULL cap, yoke included. Restricting to the outer bands reads a steeper
+    # slope (34 deg) and overshoots — the caps end up pointing above the shoulders
+    # like epaulettes. The upper edge across the whole cap (12.4 deg) sits sleeves
+    # level along a T-pose arm; the leftover visual droop is the fabric's own drape.
+    bands = {}
+    for vertex in mesh_object.data.vertices:
+        if not sleeve_mask[vertex.index]:
+            continue
+        band = round(abs(vertex.co.x) * 50.0) / 50.0
+        bands.setdefault(band, []).append(vertex.co.z)
+
+    points = []
+    for band, zs in sorted(bands.items()):
+        zs.sort()
+        top = zs[int(len(zs) * 0.9):]
+        points.append((band, sum(top) / len(top)))
+    if len(points) < 3:
+        raise RuntimeError("Not enough sleeve bands to measure the cap angle")
+
+    n = len(points)
+    mean_x = sum(x for x, _ in points) / n
+    mean_z = sum(z for _, z in points) / n
+    slope = (sum((x - mean_x) * (z - mean_z) for x, z in points)
+             / sum((x - mean_x) ** 2 for x, _ in points))
+    return math.atan(-slope)
+
+
+def raise_cap_sleeves(mesh_object, shoulders):
+    """One rigid turn of each cap about its shoulder, droop up to horizontal.
+
+    The tracked T-pose holds the arms level, so the bind mesh must too — the same
+    rectification the puffer needs, scaled down to caps. Blended by each vertex's
+    own arm weight so the armhole seam stretches instead of tearing.
+    """
+    sleeve_mask = sleeve_vertex_mask(mesh_object)
+    droop = measured_cap_droop(mesh_object, sleeve_mask)
+    print("CAP_DROOP_DEG", round(math.degrees(droop), 1))
+
+    arm_groups = {g.index: g.name for g in mesh_object.vertex_groups
+                  if g.name in ("LeftUpperArm", "RightUpperArm")}
+    moved = 0
+    for vertex in mesh_object.data.vertices:
+        influence = min(sum(a.weight for a in vertex.groups if a.group in arm_groups), 1.0)
+        if influence <= 0.0001:
+            continue
+        side = "Left" if vertex.co.x >= 0.0 else "Right"
+        pivot = shoulders[side]
+        dx = abs(vertex.co.x) - abs(pivot.x)
+        dz = vertex.co.z - pivot.z
+        cos_a, sin_a = math.cos(droop), math.sin(droop)
+        rx = dx * cos_a - dz * sin_a
+        rz = dx * sin_a + dz * cos_a
+        rotated = Vector((math.copysign(abs(pivot.x) + rx, vertex.co.x), vertex.co.y, pivot.z + rz))
+        vertex.co = vertex.co.lerp(rotated, influence)
+        moved += 1
+    mesh_object.data.update()
+    print("CAP_VERTICES_RAISED", moved)
+
+
 def sleeve_vertex_mask(mesh_object):
     vertex_count = len(mesh_object.data.vertices)
     parent = list(range(vertex_count))
@@ -229,6 +295,7 @@ with SKELETON.open(encoding="utf-8") as stream:
 positions = {bone["name"]: to_blender(bone) for bone in bones}
 armature_object = create_armature(bones, positions, "MannequinRig")
 assign_weights(mesh_object, positions)
+raise_cap_sleeves(mesh_object, {"Left": positions["LeftShoulder"], "Right": positions["RightShoulder"]})
 
 mesh_object.parent = armature_object
 modifier = mesh_object.modifiers.new(name="Armature", type="ARMATURE")
