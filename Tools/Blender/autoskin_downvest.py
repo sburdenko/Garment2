@@ -21,6 +21,11 @@ GARMENT_MATERIAL_PREFIXES = ("Default Fabric", "Knit_Terry", "FABRIC", "Trim_Har
 GLOBAL_DROP = 0.03
 COLLAR_BASE = 1.46
 COLLAR_TOP = 1.54
+# The jacket ended at the natural waist. Lowering it whole would drag the collar
+# off the neck, so the body below the chest stretches instead: nothing moves at
+# chest height, the hem gains the full extension — from the waist down to the hip.
+HEM_EXTENSION = 0.10
+HEM_STRETCH_TOP = 1.25
 SLEEVE_BLEND_INNER = 0.17
 SLEEVE_BLEND_OUTER = 0.20
 
@@ -279,8 +284,11 @@ mesh_object.data.name = "DownVest_Rigged"
 
 strip_avatar(mesh_object)
 fit_collar(mesh_object)
+hem_z = min(vertex.co.z for vertex in mesh_object.data.vertices)
 for vertex in mesh_object.data.vertices:
     vertex.co.z -= GLOBAL_DROP
+    reach = 1.0 - smoothstep(hem_z, HEM_STRETCH_TOP, vertex.co.z)
+    vertex.co.z -= HEM_EXTENSION * reach
 mesh_object.data.update()
 zs = [v.co.z for v in mesh_object.data.vertices]
 print("GARMENT_Z", round(min(zs), 3), "..", round(max(zs), 3))
