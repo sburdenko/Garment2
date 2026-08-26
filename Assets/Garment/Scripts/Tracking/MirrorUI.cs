@@ -17,6 +17,13 @@ namespace Garment.Tracking
         private PhotoFrameSource gallery;
         private bool uiVisible = true;
 
+        /// <summary>Whether the control panel is on screen. The H key and gestures both flip it.</summary>
+        public bool Visible
+        {
+            get => uiVisible;
+            set => uiVisible = value;
+        }
+
         private void Awake()
         {
             if (wardrobe == null) wardrobe = FindFirstObjectByType<Wardrobe.Wardrobe>();

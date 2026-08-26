@@ -29,6 +29,7 @@ namespace Garment.EditorTools
             }
 
             TestReadiness(Check);
+            TestGestures(Check);
             TestOneEuroFilter(Check);
             TestRoiFraming(Check);
 
@@ -73,6 +74,89 @@ namespace Garment.EditorTools
             bool ready = tracker.IsReady;
             for (float t = from; t <= to + 1e-4f; t += 0.05f) ready = tracker.Update(good, t);
             return ready;
+        }
+
+        private static void TestGestures(System.Action<string, bool> check)
+        {
+            const float aspect = 0.667f;
+            var recognizer = new GestureRecognizer(holdSeconds: 0.5f, repeatSeconds: 1f);
+
+            var resting = Pose(rightWristY: 0.45f, leftWristY: 0.45f, earTiltDegrees: 0f);
+            var rightUp = Pose(rightWristY: 0.95f, leftWristY: 0.45f, earTiltDegrees: 0f);
+            var bothUp = Pose(rightWristY: 0.95f, leftWristY: 0.95f, earTiltDegrees: 0f);
+            var tilted = Pose(rightWristY: 0.45f, leftWristY: 0.45f, earTiltDegrees: 25f);
+
+            check("a resting pose fires nothing",
+                Fire(recognizer, resting, aspect, 0f, 1f) == PoseGesture.None);
+
+            check("a raised hand does not fire before it is held",
+                Fire(recognizer, rightUp, aspect, 1.05f, 1.4f) == PoseGesture.None);
+
+            check("held for half a second, the raised hand fires",
+                Fire(recognizer, rightUp, aspect, 1.45f, 1.7f) == PoseGesture.RightHandRaised);
+
+            check("holding on does not fire again",
+                Fire(recognizer, rightUp, aspect, 1.75f, 3.5f) == PoseGesture.None);
+
+            check("lowering and raising again fires again",
+                Fire(recognizer, resting, aspect, 3.55f, 3.8f) == PoseGesture.None &&
+                Fire(recognizer, rightUp, aspect, 3.85f, 4.5f) == PoseGesture.RightHandRaised);
+
+            check("both hands up is a stretch, not a request",
+                Fire(recognizer, resting, aspect, 4.55f, 4.8f) == PoseGesture.None &&
+                Fire(recognizer, bothUp, aspect, 4.85f, 6f) == PoseGesture.None);
+
+            check("a held head tilt fires",
+                Fire(recognizer, resting, aspect, 6.05f, 6.3f) == PoseGesture.None &&
+                Fire(recognizer, tilted, aspect, 6.35f, 7f) == PoseGesture.HeadTilted);
+
+            check("a level head does not",
+                Fire(recognizer, resting, aspect, 7.05f, 8.5f) == PoseGesture.None);
+
+            var invisible = Pose(rightWristY: 0.95f, leftWristY: 0.45f, earTiltDegrees: 0f, visibility: 0.1f);
+            var strict = new GestureRecognizer(holdSeconds: 0.5f, repeatSeconds: 1f);
+            check("landmarks the model is unsure of are ignored",
+                Fire(strict, invisible, aspect, 0f, 2f) == PoseGesture.None);
+        }
+
+        private static PoseGesture Fire(GestureRecognizer recognizer, PoseFrame frame, float aspect,
+                                        float from, float to)
+        {
+            var fired = PoseGesture.None;
+            for (float t = from; t <= to + 1e-4f; t += 0.05f)
+            {
+                var now = recognizer.Update(frame, aspect, 0.6f, t);
+                if (now != PoseGesture.None) fired = now;
+            }
+            return fired;
+        }
+
+        /// <summary>An upright person with the nose at 0.80, ears level unless tilted.</summary>
+        private static PoseFrame Pose(float rightWristY, float leftWristY, float earTiltDegrees,
+                                      float visibility = 0.95f)
+        {
+            var screen = new Vector2[PoseFrame.LandmarkCount];
+            var world = new Vector3[PoseFrame.LandmarkCount];
+            var visible = new float[PoseFrame.LandmarkCount];
+            for (int i = 0; i < visible.Length; i++)
+            {
+                visible[i] = visibility;
+                screen[i] = new Vector2(0.5f, 0.5f);
+            }
+
+            screen[(int)PoseLandmark.Nose] = new Vector2(0.5f, 0.80f);
+
+            // Ears sit either side of the nose; tilting rotates the line joining them.
+            const float earHalfSpan = 0.025f;
+            float radians = earTiltDegrees * Mathf.Deg2Rad;
+            var offset = new Vector2(Mathf.Cos(radians) * earHalfSpan, Mathf.Sin(radians) * earHalfSpan);
+            screen[(int)PoseLandmark.LeftEar] = new Vector2(0.5f, 0.81f) + offset;
+            screen[(int)PoseLandmark.RightEar] = new Vector2(0.5f, 0.81f) - offset;
+
+            screen[(int)PoseLandmark.RightWrist] = new Vector2(0.35f, rightWristY);
+            screen[(int)PoseLandmark.LeftWrist] = new Vector2(0.65f, leftWristY);
+
+            return new PoseFrame(world, screen, visible, 1f, Vector2.zero, Vector2.one);
         }
 
         private static void TestOneEuroFilter(System.Action<string, bool> check)

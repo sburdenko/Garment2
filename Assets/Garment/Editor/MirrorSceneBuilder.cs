@@ -116,6 +116,14 @@ namespace Garment.EditorTools
             Assign(ui, "wardrobe", wardrobe);
             Assign(ui, "calibrator", calibrator);
             Assign(ui, "provider", provider);
+
+            var snapshots = wardrobeObject.AddComponent<SnapshotCapture>();
+            Assign(snapshots, "view", view);
+
+            var gestures = wardrobeObject.AddComponent<GestureControls>();
+            Assign(gestures, "provider", provider);
+            Assign(gestures, "snapshots", snapshots);
+            Assign(gestures, "ui", ui);
         }
 
         private static void CreateLighting()
