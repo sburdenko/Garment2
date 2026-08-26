@@ -29,3 +29,8 @@ Assets/Screenshots.meta
 
 # Pictures taken in the fitting room
 /Snapshots/
+
+# BlazePose heavy: measured no better than full in this pipeline (see memory notes), kept
+# out of the repo; delete the local file or drop these lines to adopt it deliberately.
+Assets/Garment/Tracking/pose_landmarks_detector_heavy.onnx
+Assets/Garment/Tracking/pose_landmarks_detector_heavy.onnx.meta
