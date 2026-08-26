@@ -17,6 +17,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 4e297fd39051c4a6cb8230dd89d92b73, type: 2}
   - {fileID: 11400000, guid: c5953f1fa4ddb46c48053a4faed7f71f, type: 2}
   - {fileID: 11400000, guid: d2fa82f779af840df9556bf49425d5ad, type: 2}
+  - {fileID: 11400000, guid: 4cb6fabd16f22424cae1759e8878c2ae, type: 2}
   defaultOutfit:
   - {fileID: 11400000, guid: 1aff42a9f73e64ec7a2d6761d2d56134, type: 2}
   - {fileID: 11400000, guid: c5953f1fa4ddb46c48053a4faed7f71f, type: 2}

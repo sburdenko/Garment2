@@ -15,13 +15,14 @@ OUTPUT = PROJECT_ROOT / "Assets/Garment/Models/PufferPants/PufferPants_Rigged.fb
 # wardrobe combined, and binding cost scales with vertex count. Puffer fabric
 # has no detail that survives past this budget anyway.
 DECIMATE_RATIO = 0.15
-# Oversized cut: the leg tubes are so wide they overlap the centreline the whole
-# way down (fabric at |x|<0.04 from waist to floor), and the garment needs no
-# extra width from calibration on top of being oversized. Slimmed towards the
-# centre, fading out at the waistband so the waist still fits the body.
+# Oversized cut, slimmed towards the centre and fading out at the waistband.
 SLIM = 0.72
-SLIM_FADE_BOTTOM = 1.00
-SLIM_FADE_TOP = 1.15
+SLIM_FADE_BOTTOM = 0.90
+SLIM_FADE_TOP = 1.03
+# Authored waistband tops out at 1.163 — ribcage height. Squashed vertically
+# about the hem so the waist lands at 1.05 and the hem stays on the floor.
+WAIST_TARGET = 1.05
+HEM_Z = 0.02
 
 
 def to_blender(position):
@@ -77,35 +78,57 @@ def hardware_vertices(mesh_object):
     return indices
 
 
+def component_sides(mesh_object):
+    """Which leg each vertex belongs to, decided per CONNECTED PANEL.
+
+    Measured: not one face bridges the centreline — the tubes are separate
+    shells. A per-vertex x test tears them anyway, because an inner wall wobbles
+    across x=0 and its vertices get snapped to opposite legs (the bar between
+    the shins). A crossfade melts both inner walls to the middle instead (the
+    glued-together look). A panel lives on one leg; assign it whole."""
+    parent = list(range(len(mesh_object.data.vertices)))
+
+    def find(index):
+        while parent[index] != index:
+            parent[index] = parent[parent[index]]
+            index = parent[index]
+        return index
+
+    for edge in mesh_object.data.edges:
+        first, second = find(edge.vertices[0]), find(edge.vertices[1])
+        if first != second:
+            parent[second] = first
+
+    totals = {}
+    for index, vertex in enumerate(mesh_object.data.vertices):
+        key = find(index)
+        sum_x, count = totals.get(key, (0.0, 0))
+        totals[key] = (sum_x + vertex.co.x, count + 1)
+
+    return {index: ("Left" if totals[find(index)][0] >= 0.0 else "Right")
+            for index in range(len(mesh_object.data.vertices))}
+
+
 def assign_leg_weights(mesh_object):
-    # Not the jeans scheme. These tubes overlap the centreline all the way down,
-    # so a hard left/right split tears the middle into a bar the moment the legs
-    # spread. The sides crossfade over 16 cm, and the fabric hanging between the
-    # legs keeps half its weight with the pelvis so it sags instead of stretching.
     group_names = [
         "Hips",
         "LeftUpperLeg", "LeftLowerLeg",
         "RightUpperLeg", "RightLowerLeg",
     ]
     groups = {name: mesh_object.vertex_groups.new(name=name) for name in group_names}
+    sides = component_sides(mesh_object)
 
     for vertex in mesh_object.data.vertices:
         height = vertex.co.z
-        hip_weight = smoothstep(0.75, 1.05, height)
-        crotch_hold = (1.0 - smoothstep(0.03, 0.10, abs(vertex.co.x))) * 0.5
-        hip_weight = max(hip_weight, crotch_hold)
-
-        left_factor = smoothstep(-0.08, 0.08, vertex.co.x)
+        side = sides[vertex.index]
+        hip_weight = smoothstep(0.75, 1.03, height)
         lower_leg = 1.0 - smoothstep(0.30, 0.55, height)
         leg_weight = 1.0 - hip_weight
         weights = {
             "Hips": hip_weight,
-            "LeftUpperLeg": leg_weight * left_factor * (1.0 - lower_leg),
-            "LeftLowerLeg": leg_weight * left_factor * lower_leg,
-            "RightUpperLeg": leg_weight * (1.0 - left_factor) * (1.0 - lower_leg),
-            "RightLowerLeg": leg_weight * (1.0 - left_factor) * lower_leg,
+            f"{side}UpperLeg": leg_weight * (1.0 - lower_leg),
+            f"{side}LowerLeg": leg_weight * lower_leg,
         }
-
         for name, weight in weights.items():
             if weight > 0.0001:
                 groups[name].add([vertex.index], weight, "REPLACE")
@@ -129,6 +152,11 @@ decimate.ratio = DECIMATE_RATIO
 bpy.context.view_layer.objects.active = mesh_object
 bpy.ops.object.modifier_apply(modifier=decimate.name)
 print("DECIMATED_TO", len(mesh_object.data.vertices))
+
+source_waist = max(v.co.z for v in mesh_object.data.vertices)
+squash = (WAIST_TARGET - HEM_Z) / (source_waist - HEM_Z)
+for vertex in mesh_object.data.vertices:
+    vertex.co.z = HEM_Z + (vertex.co.z - HEM_Z) * squash
 
 for vertex in mesh_object.data.vertices:
     shrink = SLIM + (1.0 - SLIM) * smoothstep(SLIM_FADE_BOTTOM, SLIM_FADE_TOP, vertex.co.z)
