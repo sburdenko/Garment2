@@ -22,8 +22,13 @@ WAISTBAND_DROP = 0.19
 BAND_TOP = 0.91      # fully hips above this height
 HEM_TOP = 0.48       # leg influence fades in from here down
 # A flared skirt HANGS: give the legs too much say and a leg swung out in a wide
-# stance hikes the hem up its side instead of the fabric draping over it.
-HEM_LEG_WEIGHT = 0.30  # at the hem: this much leg, the rest stays with the pelvis
+# stance hikes the hem up its side; give them too little and spread legs poke out
+# of the sides of a hem that keeps hanging straight down. There is no cloth
+# collision to drape fabric OVER a leg, so coverage has to come from the fabric
+# itself: the hem is widened sideways so a wide stance still happens inside it,
+# and the legs get a moderate say to carry the skirt with the stance.
+HEM_LEG_WEIGHT = 0.40  # at the hem: this much leg, the rest stays with the pelvis
+HEM_FLARE = 1.3        # sideways widening at the hem, fading out toward the band
 CENTRE_BLEND = 0.06  # metres over which left and right leg influence crossfades
 
 
@@ -107,6 +112,8 @@ mesh_object.data.name = "Skirt_Rigged"
 
 for vertex in mesh_object.data.vertices:
     vertex.co.z -= WAISTBAND_DROP
+    flare = 1.0 + (HEM_FLARE - 1.0) * (1.0 - smoothstep(HEM_TOP, BAND_TOP, vertex.co.z))
+    vertex.co.x *= flare
 mesh_object.data.update()
 
 with SKELETON.open(encoding="utf-8") as stream:
