@@ -34,3 +34,6 @@ Assets/Screenshots.meta
 # out of the repo; delete the local file or drop these lines to adopt it deliberately.
 Assets/Garment/Tracking/pose_landmarks_detector_heavy.onnx
 Assets/Garment/Tracking/pose_landmarks_detector_heavy.onnx.meta
+
+# Editor captures taken for verification
+/Captures/
