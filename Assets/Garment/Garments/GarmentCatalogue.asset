@@ -13,11 +13,8 @@ MonoBehaviour:
   m_Name: GarmentCatalogue
   m_EditorClassIdentifier: 
   garments:
-  - {fileID: 11400000, guid: 013ebe222cafc4499a290b70b1978e6d, type: 2}
-  - {fileID: 11400000, guid: 42d5d7da89a424d22bdeaf200f80f277, type: 2}
-  - {fileID: 11400000, guid: 4d04de34ad71f4bb698e90e96f06ae47, type: 2}
-  - {fileID: 11400000, guid: 57ec8d38535514ca0ab92bd49924fc54, type: 2}
   - {fileID: 11400000, guid: 1aff42a9f73e64ec7a2d6761d2d56134, type: 2}
+  - {fileID: 11400000, guid: c5953f1fa4ddb46c48053a4faed7f71f, type: 2}
   defaultOutfit:
-  - {fileID: 11400000, guid: 4d04de34ad71f4bb698e90e96f06ae47, type: 2}
   - {fileID: 11400000, guid: 1aff42a9f73e64ec7a2d6761d2d56134, type: 2}
+  - {fileID: 11400000, guid: c5953f1fa4ddb46c48053a4faed7f71f, type: 2}

@@ -223,12 +223,14 @@ namespace Garment.EditorTools
                 (roiA.Centre - roiB.Centre).sqrMagnitude < 1e-10f &&
                 (roiA.HalfExtent - roiB.HalfExtent).sqrMagnitude < 1e-10f);
 
+            // With legs trusted the crop hugs the real body; untrusted it reaches further
+            // down on purpose, far enough that a standing person's ankles fall inside it.
             var trusted = PoseRoi.FromLandmarks(screen, visibility, 0.5f, aspect, padding, includeLegs: true);
-            check("trusted legs still grow the crop downwards",
-                trusted.Centre.y < roiB.Centre.y - 1e-3f);
+            check("trusted crop frames the actual body",
+                trusted.HalfExtent.y <= roiA.HalfExtent.y + 1e-3f);
 
-            check("upper-body crop reserves a band below the hips",
-                roiA.Centre.y - roiA.HalfExtent.y < 0.50f - 0.20f);
+            check("untrusted crop reaches the ankles of a standing person",
+                roiA.Centre.y - roiA.HalfExtent.y <= 0.10f + 1e-3f);
         }
 
         /// <summary>Upright person: head at 0.92, shoulders at 0.75, hips at 0.50 (frame UV, y up).</summary>

@@ -106,13 +106,17 @@ namespace Garment.Tracking
 
             if (!includeLegs)
             {
-                // Reserve a fixed band below the hips so real legs are seen the moment they
-                // enter the frame — sized from the torso, which is measured, not hallucinated.
+                // Reserve room below the hips so real legs can be DISCOVERED — sized from the
+                // torso, which is measured, not hallucinated, so phantom legs still cannot
+                // steer the crop. The reach must cover a whole standing person's legs (about
+                // two torso lengths, plus slack): a shorter band starved the ankles of crop
+                // coverage, their visibility never rose, and readiness deadlocked forever.
+                const float legDiscoveryReach = 2.4f;
                 float shoulderY = (screen[(int)PoseLandmark.LeftShoulder].y
                                  + screen[(int)PoseLandmark.RightShoulder].y) * 0.5f;
                 float hipY = (screen[(int)PoseLandmark.LeftHip].y
                             + screen[(int)PoseLandmark.RightHip].y) * 0.5f;
-                min.y = Mathf.Max(0f, min.y - Mathf.Abs(shoulderY - hipY));
+                min.y = Mathf.Max(0f, min.y - Mathf.Abs(shoulderY - hipY) * legDiscoveryReach);
             }
 
             var centre = (min + max) * 0.5f;
