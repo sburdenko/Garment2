@@ -14,11 +14,16 @@ namespace Garment.Tracking
         [SerializeField] private BodyRig rig;
         [SerializeField] private WebcamPoseProvider provider;
 
-        [Tooltip("MediaPipe's depth axis points at the camera; Unity's points away from it.")]
-        [SerializeField] private bool flipDepth = true;
-        [Tooltip("How much of the model's depth estimate to trust. It is the least reliable axis " +
-                 "from a single camera — at 1 a standing person comes out leaning badly.")]
+        [Tooltip("Measured, not assumed: aim the avatar's arm at a render camera and the model " +
+                 "reports the wrist NEARER in z than the shoulder — its z already runs the same " +
+                 "way as Unity's here. Flipping it sent forward-pointing sleeves backwards.")]
+        [SerializeField] private bool flipDepth;
+        [Tooltip("Depth trust for the torso. Whole-body z is the least reliable thing the model " +
+                 "reports — at 1 a standing person comes out leaning badly.")]
         [SerializeField, Range(0f, 1f)] private float depthInfluence = 0.25f;
+        [Tooltip("Depth trust for arms and legs. Within one limb the relative z is usable, and " +
+                 "without it an arm pointed at the camera stays pinned to the body plane.")]
+        [SerializeField, Range(0f, 1f)] private float limbDepthInfluence = 0.85f;
         [Tooltip("At or above this visibility a landmark is followed outright.")]
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
         [Tooltip("Below this visibility a landmark is ignored. Between the two the limb eases " +
@@ -94,7 +99,7 @@ namespace Garment.Tracking
             for (int i = 0; i < Aims.Length; i++)
             {
                 var (bone, from, to) = Aims[i];
-                AimBone(target, bone, Position(from), Position(to),
+                AimBone(target, bone, Position(from, limbDepthInfluence), Position(to, limbDepthInfluence),
                     Mathf.Min(frame.VisibilityOf(from), frame.VisibilityOf(to)));
             }
         }
@@ -105,7 +110,7 @@ namespace Garment.Tracking
             var hips = target.GetBone(BodyLandmark.Hips);
             if (hips == null) return;
 
-            var right = Position(PoseLandmark.LeftHip) - Position(PoseLandmark.RightHip);
+            var right = Position(PoseLandmark.LeftHip, depthInfluence) - Position(PoseLandmark.RightHip, depthInfluence);
             var up = shoulderCentre - hipCentre;
             if (right.sqrMagnitude < 1e-6f || up.sqrMagnitude < 1e-6f) return;
 
@@ -166,18 +171,20 @@ namespace Garment.Tracking
             }
 
             for (int i = 0; i < filtered.Length; i++)
-                filtered[i] = filters[i].Filter(Convert(frame.World[i]), deltaTime);
+                filtered[i] = filters[i].Filter(frame.World[i], deltaTime);
         }
 
-        private Vector3 Convert(Vector3 modelSpace)
+        private Vector3 Convert(Vector3 modelSpace, float influence)
         {
-            float depth = modelSpace.z * depthInfluence;
+            float depth = modelSpace.z * influence;
             return new Vector3(modelSpace.x, modelSpace.y, flipDepth ? -depth : depth);
         }
 
-        private Vector3 Position(PoseLandmark landmark) => filtered[(int)landmark];
+        private Vector3 Position(PoseLandmark landmark, float influence) =>
+            Convert(filtered[(int)landmark], influence);
 
-        private Vector3 Midpoint(PoseLandmark a, PoseLandmark b) => (Position(a) + Position(b)) * 0.5f;
+        private Vector3 Midpoint(PoseLandmark a, PoseLandmark b) =>
+            (Position(a, depthInfluence) + Position(b, depthInfluence)) * 0.5f;
 
         /// <summary>
         /// Records where each bone points while the rig is in its rest pose. Aiming later is
