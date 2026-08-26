@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7303dc7c5316f469ea99285311c9a084, type: 3}
   m_Name: DownVest
   m_EditorClassIdentifier: 
-  displayName: Down Vest
+  displayName: Short-Sleeve Puffer Jacket
   sourcePrefab: {fileID: 919132149155446097, guid: 5ddbe2c1add2b4a24a5df003b434d375, type: 3}
   slot: 2
   submeshRoles: 0000000000000000000000000100000001000000
