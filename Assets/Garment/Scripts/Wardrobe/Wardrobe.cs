@@ -91,6 +91,13 @@ namespace Garment.Wardrobe
             instance.SetActive(dressed);
             if (definition.Slot == GarmentSlot.Top)
                 instance.transform.localScale = new Vector3(topFitScale, 1f, topFitScale);
+            if (definition.Slot == GarmentSlot.Bottom)
+            {
+                var pushout = instance.GetComponent<LegCollisionPushout>();
+                if (pushout == null) pushout = instance.AddComponent<LegCollisionPushout>();
+                pushout.Bind(body, instance.GetComponentInChildren<SkinnedMeshRenderer>());
+            }
+            UpdateTuck();
             worn[definition.Slot] = definition;
             Changed?.Invoke(definition.Slot, definition);
         }
@@ -122,6 +129,23 @@ namespace Garment.Wardrobe
 
             worn.Remove(slot);
             Changed?.Invoke(slot, null);
+            UpdateTuck();
+        }
+
+        /// <summary>
+        /// While a top is worn, the bottom's waist band pulls toward the body: it sits under
+        /// an opaque jacket where it cannot be seen, and pulled in it cannot poke through.
+        /// </summary>
+        private void UpdateTuck()
+        {
+            bool topWorn = WornIn(GarmentSlot.Top) != null || WornIn(GarmentSlot.Outer) != null;
+            foreach (var definition in worn.Values)
+            {
+                if (definition.Slot != GarmentSlot.Bottom) continue;
+                if (!bound.TryGetValue(definition, out var instance) || instance == null) continue;
+                var pushout = instance.GetComponent<LegCollisionPushout>();
+                if (pushout != null) pushout.TuckStrength = topWorn ? 0.12f : 0f;
+            }
         }
 
         /// <summary>

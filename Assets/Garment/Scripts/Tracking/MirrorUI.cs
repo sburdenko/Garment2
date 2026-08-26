@@ -138,6 +138,8 @@ namespace Garment.Tracking
 
             if (overlay != null)
                 overlay.Visible = GUILayout.Toggle(overlay.Visible, " Show skeleton");
+            Fitting.LegCollisionPushout.Active =
+                GUILayout.Toggle(Fitting.LegCollisionPushout.Active, " Leg collision");
         }
 
         private void DrawCalibration()

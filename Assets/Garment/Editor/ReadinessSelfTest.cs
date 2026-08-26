@@ -32,6 +32,7 @@ namespace Garment.EditorTools
             TestGestures(Check);
             TestOneEuroFilter(Check);
             TestRoiFraming(Check);
+            TestCapsulePushout(Check);
 
             report.AppendLine(failures == 0 ? "All passed." : $"{failures} FAILURES.");
             return report.ToString();
@@ -124,6 +125,35 @@ namespace Garment.EditorTools
                 if (now != PoseGesture.None) fired = now;
             }
             return fired;
+        }
+
+        private static void TestCapsulePushout(System.Action<string, bool> check)
+        {
+            var a = new Vector3(0f, 0f, 0f);
+            var b = new Vector3(0f, 1f, 0f);
+
+            var outside = new Vector3(0.3f, 0.5f, 0f);
+            check("a point outside the capsule is untouched",
+                Garment.Fitting.LegCollisionPushout.PushOutOfCapsule(outside, a, b, 0.2f) == outside);
+
+            var inner = Garment.Fitting.LegCollisionPushout.PushOutOfCapsule(
+                new Vector3(0.05f, 0.5f, 0f), a, b, 0.2f);
+            var outer = Garment.Fitting.LegCollisionPushout.PushOutOfCapsule(
+                new Vector3(0.10f, 0.5f, 0f), a, b, 0.2f);
+            check("a point inside lands just past the surface, radially",
+                inner.x >= 0.2f && inner.x < 0.21f && Mathf.Abs(inner.y - 0.5f) < 1e-5f);
+            check("shell ordering survives: deeper stays deeper",
+                inner.x < outer.x);
+
+            var below = Garment.Fitting.LegCollisionPushout.PushOutOfCapsule(
+                new Vector3(0f, -0.1f, 0.05f), a, b, 0.2f);
+            check("the end caps are round",
+                (below - a).magnitude >= 0.2f && (below - a).magnitude < 0.21f);
+
+            var axial = Garment.Fitting.LegCollisionPushout.PushOutOfCapsule(
+                new Vector3(0f, 0.5f, 0f), a, b, 0.2f);
+            check("a point on the axis still leaves",
+                (axial - new Vector3(0f, 0.5f, 0f)).magnitude >= 0.2f);
         }
 
         /// <summary>An upright person with the nose at 0.80.</summary>
