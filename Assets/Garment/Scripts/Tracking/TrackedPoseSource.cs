@@ -19,8 +19,11 @@ namespace Garment.Tracking
         [Tooltip("How much of the model's depth estimate to trust. It is the least reliable axis " +
                  "from a single camera — at 1 a standing person comes out leaning badly.")]
         [SerializeField, Range(0f, 1f)] private float depthInfluence = 0.25f;
-        [Tooltip("Landmarks below this visibility are ignored, and the bone holds its last pose.")]
+        [Tooltip("At or above this visibility a landmark is followed outright.")]
         [SerializeField, Range(0f, 1f)] private float visibilityThreshold = 0.5f;
+        [Tooltip("Below this visibility a landmark is ignored. Between the two the limb eases " +
+                 "in, so a point hovering around the threshold cannot snap the limb about.")]
+        [SerializeField, Range(0f, 1f)] private float visibilityFloor = 0.2f;
         [Tooltip("Movement slower than this (Hz) is treated as sensor jitter and smoothed away.")]
         [SerializeField, Range(0.1f, 10f)] private float jitterCutoff = 1.5f;
         [Tooltip("How much a moving landmark relaxes the smoothing. Higher follows faster.")]
@@ -96,15 +99,15 @@ namespace Garment.Tracking
             var shoulderCentre = Midpoint(PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder);
 
             AimRoot(target, hipCentre, shoulderCentre);
-            AimBone(target, BodyLandmark.Spine, hipCentre, shoulderCentre);
+            AimBone(target, BodyLandmark.Spine, hipCentre, shoulderCentre, 1f);
 
             bool lowerBodyVisible = coverage == BodyCoverage.FullBody;
             for (int i = 0; i < Aims.Length; i++)
             {
                 if (!lowerBodyVisible && i < 4) continue;
                 var (bone, from, to) = Aims[i];
-                if (frame.VisibilityOf(from) < visibilityThreshold || frame.VisibilityOf(to) < visibilityThreshold) continue;
-                AimBone(target, bone, Position(from), Position(to));
+                AimBone(target, bone, Position(from), Position(to),
+                    Mathf.Min(frame.VisibilityOf(from), frame.VisibilityOf(to)));
             }
         }
 
@@ -139,12 +142,19 @@ namespace Garment.Tracking
         /// Rest means rest *this frame*: the chain is aimed parents first, so a bone's rest
         /// orientation is its parent's current rotation carrying the bone's bind-pose local one.
         /// </summary>
-        private void AimBone(BodyRig target, BodyLandmark landmark, Vector3 from, Vector3 to)
+        private void AimBone(BodyRig target, BodyLandmark landmark, Vector3 from, Vector3 to, float confidence)
         {
             var bone = target.GetBone(landmark);
             if (bone == null ||
                 !bindDirections.TryGetValue(landmark, out var bindDirection) ||
                 !bindLocalRotations.TryGetValue(landmark, out var bindLocalRotation)) return;
+
+            // Confidence is a continuous quantity, so the response to it has to be continuous
+            // too. A hard cutoff makes a landmark hovering around the threshold flip the whole
+            // limb between tracked and rest several times a second — a raised arm snapping back
+            // to a horizontal T-pose and out again, dragging its sleeve across the chest.
+            float trust = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(visibilityFloor, visibilityThreshold, confidence));
+            if (trust <= 0f) return;
 
             var wanted = to - from;
             if (wanted.sqrMagnitude < 1e-6f) return;
@@ -153,7 +163,8 @@ namespace Garment.Tracking
                 ? bone.parent.rotation * bindLocalRotation
                 : bindLocalRotation;
 
-            bone.rotation = Quaternion.FromToRotation(restRotation * bindDirection, wanted.normalized) * restRotation;
+            var aimed = Quaternion.FromToRotation(restRotation * bindDirection, wanted.normalized) * restRotation;
+            bone.rotation = trust >= 1f ? aimed : Quaternion.Slerp(restRotation, aimed, trust);
         }
 
         /// <summary>Landmarks jitter frame to frame; the avatar must not.</summary>

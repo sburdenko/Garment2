@@ -13,6 +13,7 @@ namespace Garment.Tracking
         [SerializeField] private BodyRig rig;
         [SerializeField] private WebcamPoseProvider provider;
         [SerializeField] private Camera view;
+        [SerializeField] private BodyCalibrator calibrator;
 
         [Tooltip("How far the avatar may be pushed from the camera, in metres.")]
         [SerializeField] private Vector2 depthRange = new Vector2(1f, 6f);
@@ -39,6 +40,7 @@ namespace Garment.Tracking
             if (rig == null) rig = GetComponent<BodyRig>();
             if (provider == null) provider = FindFirstObjectByType<WebcamPoseProvider>();
             if (view == null) view = Camera.main;
+            if (calibrator == null) calibrator = FindFirstObjectByType<BodyCalibrator>();
         }
 
         private void LateUpdate()
@@ -68,30 +70,17 @@ namespace Garment.Tracking
             var hipsScreen = Midpoint(frame, PoseLandmark.LeftHip, PoseLandmark.RightHip);
             var shoulderScreen = Midpoint(frame, PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder);
 
-            // Scale off the longest visible span. The camera that took the picture is unknown,
-            // so perspective will never match exactly; a long baseline spreads that error out
-            // instead of concentrating it in the legs.
-            float measuredSpan;
-            float avatarSpan;
-            if (anklesVisible)
-            {
-                var ankleScreen = Midpoint(frame, PoseLandmark.LeftAnkle, PoseLandmark.RightAnkle);
-                measuredSpan = Mathf.Abs(shoulderScreen.y - ankleScreen.y);
-                avatarSpan = AvatarSpan(BodyLandmark.LeftAnkle);
-            }
-            else
-            {
-                measuredSpan = Mathf.Abs(shoulderScreen.y - hipsScreen.y);
-                avatarSpan = TorsoLength();
-            }
-
-            measuredSpan *= VerticalFrameScale();
+            // One basis, always: the torso is the only span visible in every framing, and a span
+            // that never changes is a depth that never jumps. The legs, when they are there,
+            // refine the result through the correction loop rather than replacing the basis.
+            float measuredSpan = TrackedTorsoSpan(frame, shoulderScreen, hipsScreen) * VerticalFrameScale();
+            float avatarSpan = TorsoLength();
             if (measuredSpan < 0.02f || avatarSpan <= 0f) return;
 
             if (spanFilter == null) spanFilter = new OneEuroFilter(anchorJitterCutoff, anchorSpeedResponse);
             measuredSpan = spanFilter.Filter(measuredSpan, deltaTime);
 
-            UpdateDepthCorrection(measuredSpan, anklesVisible, deltaTime);
+            UpdateDepthCorrection(frame, anklesVisible, deltaTime);
 
             float depth = DepthForSpan(avatarSpan, measuredSpan) * depthCorrection;
             if (depth <= 0f) return;
@@ -159,19 +148,32 @@ namespace Garment.Tracking
         /// folds the ratio into the depth. Converges in a few frames and absorbs whatever the
         /// unknown real camera does that the ideal formula misses.
         /// </summary>
-        private void UpdateDepthCorrection(float measuredSpan, bool anklesVisible, float deltaTime)
+        private void UpdateDepthCorrection(PoseFrame frame, bool anklesVisible, float deltaTime)
         {
-            if (!hasTarget || !anklesVisible) return;
+            if (!hasTarget) return;
+
+            // Close the loop on the longest span currently in view: shoulders to ankles when
+            // the legs are there, shoulders to hips otherwise. Both converge on the same true
+            // depth — the long one just gets there with less noise. Measuring only when the
+            // ankles show would leave the avatar sized by a stale correction exactly in the
+            // waist-up framing that needs it most.
+            var lower = anklesVisible ? BodyLandmark.LeftAnkle : BodyLandmark.Hips;
+            var lowerScreen = anklesVisible
+                ? Midpoint(frame, PoseLandmark.LeftAnkle, PoseLandmark.RightAnkle)
+                : Midpoint(frame, PoseLandmark.LeftHip, PoseLandmark.RightHip);
+            var shoulderScreen = Midpoint(frame, PoseLandmark.LeftShoulder, PoseLandmark.RightShoulder);
+
+            float measuredSpan = Mathf.Abs(shoulderScreen.y - lowerScreen.y) * VerticalFrameScale();
+            if (measuredSpan < 0.02f) return;
 
             var leftShoulder = rig.GetBone(BodyLandmark.LeftShoulder);
             var rightShoulder = rig.GetBone(BodyLandmark.RightShoulder);
-            var leftAnkle = rig.GetBone(BodyLandmark.LeftAnkle);
-            var rightAnkle = rig.GetBone(BodyLandmark.RightAnkle);
-            if (leftShoulder == null || rightShoulder == null || leftAnkle == null || rightAnkle == null) return;
+            var lowerBone = rig.GetBone(lower);
+            if (leftShoulder == null || rightShoulder == null || lowerBone == null) return;
 
             float shoulderY = view.WorldToViewportPoint((leftShoulder.position + rightShoulder.position) * 0.5f).y;
-            float ankleY = view.WorldToViewportPoint((leftAnkle.position + rightAnkle.position) * 0.5f).y;
-            float avatarProjected = Mathf.Abs(shoulderY - ankleY);
+            float lowerY = view.WorldToViewportPoint(lowerBone.position).y;
+            float avatarProjected = Mathf.Abs(shoulderY - lowerY);
             if (avatarProjected < 0.02f) return;
 
             // Avatar too small on screen -> ratio < 1 -> pull it closer.
@@ -195,16 +197,39 @@ namespace Garment.Tracking
             return Mathf.Clamp(depth, depthRange.x, depthRange.y);
         }
 
-        /// <summary>Vertical distance from the shoulders down to the named joint on the avatar.</summary>
-        private float AvatarSpan(BodyLandmark lower)
+        /// <summary>
+        /// The person's torso height on screen.
+        ///
+        /// Measuring it straight off the hip landmark is the obvious way and the shaky one: in a
+        /// waist-up framing the hips sit at the very bottom of the picture, half out of it, and
+        /// the tracker guesses. Shoulder width is measured between two points sitting well
+        /// inside the frame, so once calibration knows how long this person's torso is per unit
+        /// of shoulder width, that proportion turns a steady measurement into a steady span.
+        ///
+        /// Trust follows the hip landmark's own visibility, and the shoulder estimate only
+        /// stands in when there is a calibrated proportion to stand in with. It foreshortens
+        /// when the person turns side-on, which is why it never fully replaces the direct read.
+        /// </summary>
+        private float TrackedTorsoSpan(PoseFrame frame, Vector2 shoulderScreen, Vector2 hipsScreen)
         {
-            var leftShoulder = rig.GetBone(BodyLandmark.LeftShoulder);
-            var rightShoulder = rig.GetBone(BodyLandmark.RightShoulder);
-            var lowerBone = rig.GetBone(lower);
-            if (leftShoulder == null || rightShoulder == null || lowerBone == null) return 0f;
+            float direct = Mathf.Abs(shoulderScreen.y - hipsScreen.y);
 
-            float shoulderY = (leftShoulder.position.y + rightShoulder.position.y) * 0.5f;
-            return Mathf.Abs(shoulderY - lowerBone.position.y);
+            float torsoPerShoulder = calibrator != null ? calibrator.LastMeasurements.TorsoPerShoulder : 0f;
+            if (calibrator == null || !calibrator.HasCalibrated || torsoPerShoulder <= 0f) return direct;
+
+            // Shoulder width runs across the frame, the torso down it; frame UV is not square,
+            // so the width has to be carried into vertical units before the ratio applies.
+            var left = frame.ScreenOf(PoseLandmark.LeftShoulder);
+            var right = frame.ScreenOf(PoseLandmark.RightShoulder);
+            float aspect = provider.Feed != null ? provider.Feed.AspectRatio : 1f;
+            float shoulderSpan = new Vector2((left.x - right.x) * aspect, left.y - right.y).magnitude;
+            if (shoulderSpan < 1e-3f) return direct;
+
+            float derived = shoulderSpan * torsoPerShoulder;
+
+            float hipConfidence = Mathf.Min(frame.VisibilityOf(PoseLandmark.LeftHip),
+                                            frame.VisibilityOf(PoseLandmark.RightHip));
+            return Mathf.Lerp(derived, direct, Mathf.Clamp01(hipConfidence));
         }
 
         /// <summary>

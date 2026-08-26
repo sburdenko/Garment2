@@ -99,6 +99,9 @@ namespace Garment.EditorTools
             Assign(calibrator, "rig", rig);
             Assign(calibrator, "provider", provider);
 
+            // Alignment reads the person's torso-to-shoulder proportion from the calibration.
+            Assign(alignment, "calibrator", calibrator);
+
             // The point is to see yourself wearing the clothes, so the body itself stays hidden.
             if (rig.BodyMesh != null) rig.BodyMesh.enabled = false;
 
