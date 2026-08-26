@@ -19,7 +19,7 @@ MonoBehaviour:
   materialOverrides:
   - {fileID: 2100000, guid: 09dfee09b4e4142a7a8bc4a21e451125, type: 2}
   fitMode: 1
-  compensateWidth: 1
+  compensateWidth: 0
   skinOffset: 0.004
   positionOffset: {x: 0, y: 0, z: 0}
   scaleMultiplier: 1

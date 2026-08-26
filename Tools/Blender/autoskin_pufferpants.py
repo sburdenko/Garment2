@@ -15,6 +15,13 @@ OUTPUT = PROJECT_ROOT / "Assets/Garment/Models/PufferPants/PufferPants_Rigged.fb
 # wardrobe combined, and binding cost scales with vertex count. Puffer fabric
 # has no detail that survives past this budget anyway.
 DECIMATE_RATIO = 0.15
+# Oversized cut: the leg tubes are so wide they overlap the centreline the whole
+# way down (fabric at |x|<0.04 from waist to floor), and the garment needs no
+# extra width from calibration on top of being oversized. Slimmed towards the
+# centre, fading out at the waistband so the waist still fits the body.
+SLIM = 0.72
+SLIM_FADE_BOTTOM = 1.00
+SLIM_FADE_TOP = 1.15
 
 
 def to_blender(position):
@@ -71,39 +78,37 @@ def hardware_vertices(mesh_object):
 
 
 def assign_leg_weights(mesh_object):
+    # Not the jeans scheme. These tubes overlap the centreline all the way down,
+    # so a hard left/right split tears the middle into a bar the moment the legs
+    # spread. The sides crossfade over 16 cm, and the fabric hanging between the
+    # legs keeps half its weight with the pelvis so it sags instead of stretching.
     group_names = [
         "Hips",
         "LeftUpperLeg", "LeftLowerLeg",
         "RightUpperLeg", "RightLowerLeg",
     ]
     groups = {name: mesh_object.vertex_groups.new(name=name) for name in group_names}
-    rigid = hardware_vertices(mesh_object)
 
     for vertex in mesh_object.data.vertices:
-        if vertex.index in rigid:
-            weights = {"Hips": 1.0}
-        else:
-            side = "Left" if vertex.co.x >= 0.0 else "Right"
-            height = vertex.co.z
-            centre = 1.0 - smoothstep(0.025, 0.065, abs(vertex.co.x))
+        height = vertex.co.z
+        hip_weight = smoothstep(0.75, 1.05, height)
+        crotch_hold = (1.0 - smoothstep(0.03, 0.10, abs(vertex.co.x))) * 0.5
+        hip_weight = max(hip_weight, crotch_hold)
 
-            hip_weight = smoothstep(0.80, 1.01, height)
-            crotch_weight = centre * (1.0 - smoothstep(0.70, 0.93, height)) * smoothstep(0.58, 0.76, height) * 0.65
-            hip_weight = max(hip_weight, crotch_weight)
-
-            lower_leg_weight = 1.0 - smoothstep(0.39, 0.57, height)
-            leg_weight = 1.0 - hip_weight
-            weights = {
-                "Hips": hip_weight,
-                f"{side}UpperLeg": leg_weight * (1.0 - lower_leg_weight),
-                f"{side}LowerLeg": leg_weight * lower_leg_weight,
-            }
+        left_factor = smoothstep(-0.08, 0.08, vertex.co.x)
+        lower_leg = 1.0 - smoothstep(0.30, 0.55, height)
+        leg_weight = 1.0 - hip_weight
+        weights = {
+            "Hips": hip_weight,
+            "LeftUpperLeg": leg_weight * left_factor * (1.0 - lower_leg),
+            "LeftLowerLeg": leg_weight * left_factor * lower_leg,
+            "RightUpperLeg": leg_weight * (1.0 - left_factor) * (1.0 - lower_leg),
+            "RightLowerLeg": leg_weight * (1.0 - left_factor) * lower_leg,
+        }
 
         for name, weight in weights.items():
             if weight > 0.0001:
                 groups[name].add([vertex.index], weight, "REPLACE")
-
-    print("RIGID_VERTICES", len(rigid))
 
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -124,6 +129,12 @@ decimate.ratio = DECIMATE_RATIO
 bpy.context.view_layer.objects.active = mesh_object
 bpy.ops.object.modifier_apply(modifier=decimate.name)
 print("DECIMATED_TO", len(mesh_object.data.vertices))
+
+for vertex in mesh_object.data.vertices:
+    shrink = SLIM + (1.0 - SLIM) * smoothstep(SLIM_FADE_BOTTOM, SLIM_FADE_TOP, vertex.co.z)
+    vertex.co.x *= shrink
+    vertex.co.y *= shrink
+mesh_object.data.update()
 
 with SKELETON.open(encoding="utf-8") as stream:
     bones = json.load(stream)
