@@ -82,7 +82,10 @@ namespace Garment.Fitting
                 bool innerShell = radii[i] < bandMedians[band];
                 float reach = Mathf.InverseLerp(pinAbove, hemY, vertices[i].y);
                 coefficients[i].maxDistance = innerShell ? 0f : hemFreedom * Mathf.SmoothStep(0f, 1f, reach);
-                coefficients[i].collisionSphereDistance = float.MaxValue;
+                // Backstop: the simulated outer shell may drape outward and down but never
+                // sink BEHIND its skinned surface — without it gravity pressed the pleats
+                // through the pinned lining, which surfaced as dark torn patches.
+                coefficients[i].collisionSphereDistance = 0.015f;
             }
             cloth.coefficients = coefficients;
 
