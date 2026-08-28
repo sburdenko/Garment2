@@ -24,13 +24,15 @@ BODY_NAME = "Beta_Surface"
 RIG_NAME = "XBotRig"
 CUFF_REACH = 0.50
 SEED_REACH = 0.40
-ARMHOLE = 0.16
-SLEEVE_FULL = 0.26
+ARMHOLE = 0.20
+SLEEVE_FULL = 0.28
 # The kameez has side slits, so past the armhole the bodice stays wide all the way down and a
 # width test alone lets the flood walk the side seam into the skirt. Distance from the sleeve's
 # own axis separates them: the cuff sits on the axis, the side seam is a quarter metre off it.
-SLEEVE_RADIUS = 0.20
-SLEEVE_FADE = 0.06
+# How far below the sleeve's top seam the arm ran in the pose the garment was cut for: the
+# mannequin's upper arm measures 0.055 in radius, plus a little ease.
+ARM_CLEARANCE = 0.06
+AXIS_SPAN = (0.24, 0.44)
 OTHER_GARMENTS = ("PufferJacket_ArmsOnly", "Skirt_XBot_Rigged", "PufferPants_XBot_Rigged",
                   "RedFit_Dress_V1_Skinned", "RedFit_Top_XBot_Fitted")
 
@@ -91,6 +93,34 @@ def sleeve_direction(dress, rig, side, sign):
     return shoulder, (centre - shoulder).normalized()
 
 
+def sleeve_axis(region, world, sign, shoulder_x):
+    """Where the arm ran inside the sleeve: the top seam, dropped by the arm's own radius.
+
+    Anchoring on the rig's shoulder joint instead puts the axis a couple of centimetres under
+    the seam, which is the fabric surface rather than the arm, and the arm ends up lying on top
+    of the sleeve instead of inside it.
+    """
+    seam = {}
+    for index in region:
+        point = world[index]
+        step = round(abs(point.x), 2)
+        if not AXIS_SPAN[0] <= step <= AXIS_SPAN[1]:
+            continue
+        if step not in seam or point.z > seam[step].z:
+            seam[step] = point
+    steps = sorted(seam)
+    if len(steps) < 2:
+        raise RuntimeError("sleeve too short to fit an axis")
+
+    first, last = seam[steps[0]], seam[steps[-1]]
+    direction = (last - first).normalized()
+    up = Vector((0.0, 0.0, 1.0))
+    up_perp = (up - direction * up.dot(direction)).normalized()
+    reach = (sign * shoulder_x - first.x) / direction.x
+    anchor = first + direction * reach - up_perp * ARM_CLEARANCE
+    return anchor, direction
+
+
 def sleeve_region(dress, sign, shoulder, direction):
     """The sleeve, found by flooding out from the cuff and stopping at the armhole.
 
@@ -107,12 +137,7 @@ def sleeve_region(dress, sign, shoulder, direction):
         neighbours[b].append(a)
 
     def inside(index):
-        point = world[index]
-        if sign * point.x <= ARMHOLE:
-            return False
-        offset = point - shoulder
-        along = offset.dot(direction)
-        return along > 0.0 and (offset - direction * along).length < SLEEVE_RADIUS
+        return sign * world[index].x > ARMHOLE
     region = set(i for i in range(len(world)) if sign * world[i].x > SEED_REACH)
     stack = list(region)
     while stack:
@@ -126,33 +151,45 @@ def sleeve_region(dress, sign, shoulder, direction):
 
 
 def lift_sleeves(dress, rig):
-    """Rotates each sleeve onto the rig's horizontal arm, pivoting at the shoulder.
+    """Carries each sleeve onto the rig's arm without rotating the fabric around it.
 
-    The turn fades in across the armhole, so fabric at or inside ARMHOLE is left exactly where it
-    was and nothing on the torso is disturbed.
+    Turning the whole sleeve rigidly also turns its cross section, so cloth that hung under the
+    arm swings out sideways into a wing and leaves the arm outside the tube. Only the length
+    along the sleeve's axis is rotated onto the arm; the cross section is rebuilt in cylindrical
+    coordinates measured against world up, so fabric that hung below the arm still hangs below
+    it and the arm stays as deep inside the tube as it was in the pose the garment was cut for.
     """
+    up = Vector((0.0, 0.0, 1.0))
     report = {}
     for side, sign in (("Left", 1.0), ("Right", -1.0)):
-        shoulder, direction = sleeve_direction(dress, rig, side, sign)
-        region, world = sleeve_region(dress, sign, shoulder, direction)
+        shoulder, rough = sleeve_direction(dress, rig, side, sign)
+        region, world = sleeve_region(dress, sign, shoulder, rough)
+        anchor, direction = sleeve_axis(region, world, sign, abs(shoulder.x))
         target = Vector((sign, 0.0, 0.0))
-        turn = direction.rotation_difference(target)
-        heights = [world[i].z for i in region]
-        widths = [abs(world[i].x) for i in region]
+
+        was_up = (up - direction * up.dot(direction)).normalized()
+        was_side = direction.cross(was_up)
+        now_up = (up - target * up.dot(target)).normalized()
+        now_side = target.cross(now_up)
+
         for index in region:
-            offset = world[index] - shoulder
-            off_axis = (offset - direction * offset.dot(direction)).length
-            # Fade at both edges of the region: across the armhole, and out at the radius the
-            # flood stopped at. A hard edge in either leaves a vertex flung away from neighbours
-            # that stayed put, which shows up as a spike.
-            share = (smoothstep(ARMHOLE, SLEEVE_FULL, abs(world[index].x))
-                     * (1.0 - smoothstep(SLEEVE_RADIUS - SLEEVE_FADE, SLEEVE_RADIUS, off_axis)))
+            offset = world[index] - anchor
+            along = offset.dot(direction)
+            across = offset - direction * along
+            # Zero exactly at the armhole, which is the edge of the flooded region, so the
+            # transform is continuous across the seam and nothing can tear away from a
+            # neighbour that stayed put.
+            share = smoothstep(ARMHOLE, SLEEVE_FULL, abs(world[index].x))
             if share <= 0.0:
                 continue
-            partial = Quaternion().slerp(turn, share)
-            moved = shoulder + partial @ (world[index] - shoulder)
-            dress.data.vertices[index].co = dress.matrix_world.inverted() @ moved
-        report[side] = (len(region), min(heights), max(heights), max(widths), turn.angle)
+            rebuilt = (shoulder + target * along
+                       + now_up * across.dot(was_up) + now_side * across.dot(was_side))
+            dress.data.vertices[index].co = (
+                dress.matrix_world.inverted() @ world[index].lerp(rebuilt, share))
+
+        heights = [world[i].z for i in region]
+        report[side] = (len(region), min(heights), max(heights),
+                        max(abs(world[i].x) for i in region), direction.angle(target))
     dress.data.update()
     return report
 
