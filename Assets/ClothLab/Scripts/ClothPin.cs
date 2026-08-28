@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ClothLab
@@ -20,6 +21,20 @@ namespace ClothLab
         [SerializeField, Range(0f, 1f)] private float bendingStiffness = 0.2f;
         [SerializeField, Range(0f, 1f)] private float stretchingStiffness = 0.8f;
         [SerializeField] private float solverFrequency = 120f;
+
+        [Header("Self collision")]
+        [Tooltip("Gap the fabric keeps from itself, in metres. Must stay well under the mesh's " +
+                 "shortest edge (10.6mm here) or neighbouring vertices push each other and it boils.")]
+        [SerializeField, Range(0f, 0.008f)] private float selfCollisionDistance = 0.004f;
+        [SerializeField, Range(0f, 1f)] private float selfCollisionStiffness = 0.5f;
+
+        [Header("Stand-in body")]
+        [Tooltip("Capsules the fabric is pushed out of. A hanging tube with nothing inside collapses " +
+                 "onto itself; one capsule down the middle is enough to keep it open.")]
+        [SerializeField] private CapsuleCollider[] standIn = new CapsuleCollider[0];
+
+        [Tooltip("Motion below this settles to a stop. Zero never rests, which reads as a tremble.")]
+        [SerializeField, Range(0f, 0.5f)] private float sleepThreshold = 0.05f;
 
         [Header("How hard your hand hits the fabric")]
         [Tooltip("Share of the transform's speed fed into the cloth. Lower it and dragging stops whipping the hem.")]
@@ -70,8 +85,18 @@ namespace ClothLab
             cloth.clothSolverFrequency = solverFrequency;
             cloth.worldVelocityScale = worldVelocityScale;
             cloth.worldAccelerationScale = worldAccelerationScale;
-            // A slow drape otherwise falls asleep mid-swing and freezes on screen.
-            cloth.sleepThreshold = 0f;
+            cloth.sleepThreshold = sleepThreshold;
+
+            cloth.selfCollisionDistance = selfCollisionDistance;
+            cloth.selfCollisionStiffness = selfCollisionStiffness;
+            if (selfCollisionDistance > 0f)
+            {
+                var all = new List<uint>(vertices.Length);
+                for (uint i = 0; i < vertices.Length; i++) all.Add(i);
+                cloth.SetSelfAndInterCollisionIndices(all);
+            }
+
+            cloth.capsuleColliders = standIn;
         }
     }
 }
