@@ -21,6 +21,12 @@ namespace ClothLab
         [SerializeField, Range(0f, 1f)] private float stretchingStiffness = 0.8f;
         [SerializeField] private float solverFrequency = 120f;
 
+        [Header("How hard your hand hits the fabric")]
+        [Tooltip("Share of the transform's speed fed into the cloth. Lower it and dragging stops whipping the hem.")]
+        [SerializeField, Range(0f, 1f)] private float worldVelocityScale = 0.3f;
+        [Tooltip("Share of the transform's acceleration fed into the cloth.")]
+        [SerializeField, Range(0f, 1f)] private float worldAccelerationScale = 0.3f;
+
         private Cloth cloth;
 
         private void Awake()
@@ -62,8 +68,8 @@ namespace ClothLab
             cloth.stretchingStiffness = stretchingStiffness;
             cloth.useTethers = true;
             cloth.clothSolverFrequency = solverFrequency;
-            cloth.worldVelocityScale = 1f;
-            cloth.worldAccelerationScale = 1f;
+            cloth.worldVelocityScale = worldVelocityScale;
+            cloth.worldAccelerationScale = worldAccelerationScale;
             // A slow drape otherwise falls asleep mid-swing and freezes on screen.
             cloth.sleepThreshold = 0f;
         }
