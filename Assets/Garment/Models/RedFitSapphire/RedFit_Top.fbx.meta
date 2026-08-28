@@ -1,9 +1,29 @@
 fileFormatVersion: 2
-guid: cfcec2e4f92524c2ba51056dddba3d3a
+guid: 86fb7720945a4c39b721de5e0ba9c82d
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: RedFit_Fabric
+    second: {fileID: 2100000, guid: c616bd498852b4c45a912c7e360cfe20, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: RedFit_Button
+    second: {fileID: 2100000, guid: 2dea265f67ec44411ab03120f2c0dfac, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: RedFit_Flower
+    second: {fileID: 2100000, guid: eb2e96eb0ecc34b6299177ab8c59dba1, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: RedFit_SleevePatch
+    second: {fileID: 2100000, guid: 5d10140e61c3d41d589af0e371fa21a7, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -30,7 +50,7 @@ ModelImporter:
     extraExposedTransformPaths: []
     extraUserProperties: []
     clipAnimations: []
-    isReadable: 0
+    isReadable: 1
   meshes:
     lODScreenPercentages: []
     globalScale: 1
