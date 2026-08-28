@@ -1,0 +1,64 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="project://database/Assets/Garment/UI/AnimationPreview/AnimationPreview.uss" />
+    <ui:VisualElement name="screen" class="screen">
+        <ui:VisualElement name="motion-card" class="motion-card">
+            <ui:VisualElement class="header-row">
+                <ui:VisualElement class="title-stack">
+                    <ui:Label text="MOTION PREVIEW" class="eyebrow" />
+                    <ui:Label name="current-state" text="Idle" class="title" />
+                </ui:VisualElement>
+                <ui:VisualElement class="header-actions">
+                    <ui:VisualElement class="status-pill">
+                        <ui:VisualElement class="status-dot" />
+                        <ui:Label name="status-label" text="PLAYING" class="status-text" />
+                    </ui:VisualElement>
+                    <ui:Button name="collapse-button" text="⌃" class="collapse-button" tooltip="Collapse preview controls" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <ui:VisualElement name="preview-content">
+                <ui:VisualElement class="motion-row">
+                <ui:Button name="idle-button" text="Idle" class="motion-button motion-button--active" tooltip="Play the idle animation" />
+                <ui:Button name="walking-button" text="Walking" class="motion-button" tooltip="Play the walking animation" />
+                <ui:Button name="action-button" text="Action" class="motion-button" tooltip="Show the action pose" />
+                <ui:Button name="tpose-button" text="T-Pose" class="motion-button" tooltip="Show the T-pose" />
+                <ui:Button name="pause-button" text="Pause" class="pause-button" tooltip="Pause or resume the current animation" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="outfit-section">
+                <ui:Label text="OUTFIT" class="eyebrow outfit-eyebrow" />
+                <ui:VisualElement class="outfit-row">
+                    <ui:Label text="TOP" class="outfit-label" />
+                    <ui:VisualElement class="outfit-selector">
+                        <ui:Button name="top-previous-button" text="‹" class="outfit-arrow-button" tooltip="Previous top" />
+                        <ui:Label name="top-outfit-name" text="Puffer jacket" class="outfit-name" />
+                        <ui:Button name="top-next-button" text="›" class="outfit-arrow-button" tooltip="Next top" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement class="outfit-row">
+                    <ui:Label text="BOTTOM" class="outfit-label" />
+                    <ui:VisualElement class="outfit-selector">
+                        <ui:Button name="bottom-previous-button" text="‹" class="outfit-arrow-button" tooltip="Previous bottom" />
+                        <ui:Label name="bottom-outfit-name" text="Skirt" class="outfit-name" />
+                        <ui:Button name="bottom-next-button" text="›" class="outfit-arrow-button" tooltip="Next bottom" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="cloth-row">
+                    <ui:Label text="CLOTH" class="outfit-label" />
+                    <ui:Toggle name="cloth-toggle" label="Cloth physics" value="true" class="cloth-toggle" tooltip="Enable or disable cloth simulation" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="divider" />
+
+                <ui:VisualElement class="blend-header">
+                    <ui:Label text="Smooth transition" class="setting-label" />
+                    <ui:Label name="blend-value" text="0.35 s" class="setting-value" />
+                </ui:VisualElement>
+                <ui:Slider name="blend-slider" low-value="0.10" high-value="0.80" value="0.35" show-input-field="false" class="blend-slider" />
+                <ui:Label text="Switch animations without a hard pose snap" class="hint" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
