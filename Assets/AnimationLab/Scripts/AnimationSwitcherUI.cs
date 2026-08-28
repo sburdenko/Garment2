@@ -151,7 +151,7 @@ namespace GarmentDemo.Sandbox
         private void UpdateTopOutfit()
         {
             SetActiveOutfit(topOutfits, topOutfitIndex - 1);
-            topOutfitName.text = topOutfitIndex == 0 ? "No top" : topOutfitIndex == 1 ? "Puffer jacket" : "RedFit dress V1 Skinned";
+            topOutfitName.text = topOutfitIndex == 0 ? "No top" : topOutfitIndex == 1 ? "Puffer jacket" : "RedFit Sapphire";
         }
 
         private void UpdateBottomOutfit()

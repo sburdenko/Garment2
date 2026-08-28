@@ -585,7 +585,7 @@ MonoBehaviour:
   - {fileID: 657017399}
   topOutfits:
   - {fileID: 809645826}
-  - {fileID: 0}
+  - {fileID: 2045496797}
   bottomOutfits:
   - {fileID: 1196951512}
   - {fileID: 1231236381}
@@ -954,6 +954,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 2472e870c65f4607a293efc2dd1b8a3a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2045496799}
+    - targetCorrespondingSourceObject: {fileID: 3402568190414425167, guid: 2472e870c65f4607a293efc2dd1b8a3a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2045496801}
   m_SourcePrefab: {fileID: 100100000, guid: 2472e870c65f4607a293efc2dd1b8a3a, type: 3}
 --- !u!1 &2045496797 stripped
 GameObject:
@@ -979,6 +982,36 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sourceSkeletonRoot: {fileID: 657017398}
   garmentSkeletonRoot: {fileID: 2045496798}
+--- !u!1 &2045496800 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3402568190414425167, guid: 2472e870c65f4607a293efc2dd1b8a3a, type: 3}
+  m_PrefabInstance: {fileID: 2045496796}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2045496801
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2045496800}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2fa63b7d4fb1d4b5b94e17f85064a7aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  skirtHeight: 0.55
+  hemSwing: 0.14
+  sleeveSwing: 0.05
+  cuffGrip: 0.15
+  damping: 0.05
+  bendingStiffness: 0.1
+  stretchingStiffness: 0.75
+  friction: 0.4
+  breezeStrength: 6
+  thighRadius: 0.085
+  shinRadius: 0.055
+  upperArmRadius: 0.055
+  forearmRadius: 0.045
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

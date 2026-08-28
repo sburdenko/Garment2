@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:Style src="project://database/Assets/Garment/UI/AnimationPreview/AnimationPreview.uss" />
+    <ui:Style src="project://database/Assets/AnimationLab/UI/AnimationPreview.uss" />
     <ui:VisualElement name="screen" class="screen">
         <ui:VisualElement name="motion-card" class="motion-card">
             <ui:VisualElement class="header-row">

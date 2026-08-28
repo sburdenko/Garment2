@@ -9,15 +9,9 @@ namespace GarmentDemo.Sandbox
     /// Each region carries its own freedom budget, so the hem can be made lively without the
     /// shoulders tearing loose.
     ///
-    /// The mesh is a Z-up export: local +Z is the body's vertical axis, local X the T-pose arm
-    /// span. Both region tests read those two axes directly.
-    ///
-    /// Inside a simulated region only the outer wall of the fabric moves. The garment is a
-    /// double-walled shell roughly 0.4 mm thick, and Unity welds only part of those wall pairs
-    /// into shared particles: freeing both walls lets the unwelded ones drift apart and the
-    /// surface shatters into shards. Pinning the inner wall keeps the sheet stitched to the
-    /// skinned pose, and it is what caps how far any of this can be pushed — past roughly the
-    /// defaults below the tearing shows through no matter how the fabric is tuned.
+    /// Region tests read the mesh's own axes: local +Y is the body's vertical, local X the T-pose
+    /// arm span. The mesh ships in the rig's space, which is centimetres, so the distances below
+    /// are written in metres and converted through the renderer's scale.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(SkinnedMeshRenderer))]
@@ -85,7 +79,12 @@ namespace GarmentDemo.Sandbox
 
             cloth = GetComponent<Cloth>();
             if (cloth == null)
+            {
                 cloth = gameObject.AddComponent<Cloth>();
+                // Off until the panel asks for it, the way the rest of the wardrobe drapes: the
+                // rest pose is the garment as authored, and that is what should greet the scene.
+                cloth.enabled = false;
+            }
 
             restVertices = cloth.vertices;
             ApplyCoefficients();
@@ -134,8 +133,8 @@ namespace GarmentDemo.Sandbox
 
             foreach (Vector3 vertex in vertices)
             {
-                hemLine = Mathf.Min(hemLine, vertex.z);
-                shoulderLine = Mathf.Max(shoulderLine, vertex.z);
+                hemLine = Mathf.Min(hemLine, vertex.y);
+                shoulderLine = Mathf.Max(shoulderLine, vertex.y);
                 armSpan = Mathf.Max(armSpan, Mathf.Abs(vertex.x));
             }
 
@@ -144,23 +143,21 @@ namespace GarmentDemo.Sandbox
             // where no sleeve can reach — is what separates sleeve from bodice.
             float torsoHalfWidth = 0f;
             foreach (Vector3 vertex in vertices)
-                if (vertex.z < skirtTop) torsoHalfWidth = Mathf.Max(torsoHalfWidth, Mathf.Abs(vertex.x));
+                if (vertex.y < skirtTop) torsoHalfWidth = Mathf.Max(torsoHalfWidth, Mathf.Abs(vertex.x));
             float sleeveStart = torsoHalfWidth * 1.2f;
 
-            float[] wallRadius = MeasureWallRadius(vertices, skirtTop, sleeveStart);
-            Dictionary<int, float> medians = MedianPerBand(vertices, wallRadius, skirtTop, sleeveStart);
+            float toLocal = LocalUnitsPerMetre();
 
             var coefficients = new ClothSkinningCoefficient[vertices.Length];
             for (int i = 0; i < vertices.Length; i++)
             {
                 Vector3 vertex = vertices[i];
                 Region region = Classify(vertex, skirtTop, sleeveStart);
-                bool innerWall = region != Region.Pinned && wallRadius[i] < medians[BandOf(vertex, sleeveStart)];
-
-                coefficients[i].maxDistance = innerWall ? 0f : Freedom(region, vertex, skirtTop, hemLine, sleeveStart, armSpan);
+                coefficients[i].maxDistance =
+                    Freedom(region, vertex, skirtTop, hemLine, sleeveStart, armSpan) * toLocal;
                 // Backstop: fabric may drape outward but never sink behind its skinned surface,
                 // which otherwise shows up as dark torn patches where it passes through itself.
-                coefficients[i].collisionSphereDistance = 0.012f;
+                coefficients[i].collisionSphereDistance = 0.012f * toLocal;
             }
 
             cloth.coefficients = coefficients;
@@ -171,7 +168,7 @@ namespace GarmentDemo.Sandbox
             switch (region)
             {
                 case Region.Skirt:
-                    return hemSwing * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(skirtTop, hemLine, vertex.z));
+                    return hemSwing * Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(skirtTop, hemLine, vertex.y));
                 case Region.Sleeve:
                     float alongSleeve = Mathf.InverseLerp(sleeveStart, armSpan, Mathf.Abs(vertex.x));
                     float grip = 1f - Mathf.SmoothStep(1f - cuffGrip, 1f, alongSleeve);
@@ -184,76 +181,18 @@ namespace GarmentDemo.Sandbox
         private static Region Classify(Vector3 vertex, float skirtTop, float sleeveStart)
         {
             if (Mathf.Abs(vertex.x) >= sleeveStart) return Region.Sleeve;
-            return vertex.z < skirtTop ? Region.Skirt : Region.Pinned;
-        }
-
-        /// <summary>Bands run across the tube each region wraps: up the body, out along the arm.</summary>
-        private static int BandOf(Vector3 vertex, float sleeveStart)
-        {
-            return Mathf.Abs(vertex.x) >= sleeveStart
-                ? Mathf.RoundToInt(Mathf.Abs(vertex.x) / BandSize)
-                : -Mathf.RoundToInt(vertex.z / BandSize) - 1;
+            return vertex.y < skirtTop ? Region.Skirt : Region.Pinned;
         }
 
         /// <summary>
-        /// Distance from the tube's own centre line — the body's for the skirt, the arm's for the
-        /// sleeve — so that the median across a band splits the fabric's outer wall from its inner.
+        /// Cloth coefficients are measured in the renderer's own space, and this mesh ships in the
+        /// rig's, where a metre is a hundred units.
         /// </summary>
-        private static float[] MeasureWallRadius(Vector3[] vertices, float skirtTop, float sleeveStart)
+        private float LocalUnitsPerMetre()
         {
-            var sums = new Dictionary<int, Vector3>();
-            var counts = new Dictionary<int, int>();
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                int band = BandOf(vertices[i], sleeveStart);
-                sums.TryGetValue(band, out Vector3 sum);
-                counts.TryGetValue(band, out int count);
-                sums[band] = sum + vertices[i];
-                counts[band] = count + 1;
-            }
-
-            var radii = new float[vertices.Length];
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                int band = BandOf(vertices[i], sleeveStart);
-                Vector3 centre = sums[band] / counts[band];
-                Vector3 offset = vertices[i] - centre;
-                radii[i] = Mathf.Abs(vertices[i].x) >= sleeveStart
-                    ? new Vector2(offset.y, offset.z).magnitude
-                    : new Vector2(offset.x, offset.y).magnitude;
-            }
-
-            return radii;
-        }
-
-        private static Dictionary<int, float> MedianPerBand(Vector3[] vertices, float[] radii, float skirtTop, float sleeveStart)
-        {
-            var perBand = new Dictionary<int, List<float>>();
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                if (Classify(vertices[i], skirtTop, sleeveStart) == Region.Pinned) continue;
-                int band = BandOf(vertices[i], sleeveStart);
-                if (!perBand.TryGetValue(band, out List<float> values))
-                    perBand[band] = values = new List<float>();
-                values.Add(radii[i]);
-            }
-
-            var medians = new Dictionary<int, float>(perBand.Count);
-            foreach (KeyValuePair<int, List<float>> band in perBand)
-            {
-                band.Value.Sort();
-                medians[band.Key] = band.Value[band.Value.Count / 2];
-            }
-
-            // Bands holding only pinned fabric are never asked for a median by the loop above,
-            // but BandOf is evaluated for every vertex, so they still need an entry.
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                int band = BandOf(vertices[i], sleeveStart);
-                if (!medians.ContainsKey(band)) medians[band] = float.MaxValue;
-            }
-
-            return medians;
+            Vector3 scale = transform.lossyScale;
+            float largest = Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
+            return largest > 1e-6f ? 1f / largest : 1f;
         }
 
         private void ApplyColliders()
