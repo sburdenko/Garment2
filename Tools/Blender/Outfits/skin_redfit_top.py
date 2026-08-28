@@ -33,6 +33,12 @@ SLEEVE_FULL = 0.28
 # mannequin's upper arm measures 0.055 in radius, plus a little ease.
 ARM_CLEARANCE = 0.06
 AXIS_SPAN = (0.24, 0.44)
+# The garment was cut on a 1.755m avatar; on XBot its shoulder seam lands 9cm below the shoulder.
+LIFT = 0.09
+# "hang" keeps the cross section upright against gravity, so the bell still falls downward but
+# fabric under the armhole stays behind as a curtain. "rigid" turns the sleeve whole, which
+# clears the armpit but swings the bell out sideways.
+SLEEVE_MODE = "hang" 
 OTHER_GARMENTS = ("PufferJacket_ArmsOnly", "Skirt_XBot_Rigged", "PufferPants_XBot_Rigged",
                   "RedFit_Dress_V1_Skinned", "RedFit_Top_XBot_Fitted")
 
@@ -73,6 +79,9 @@ def import_dress():
     dress.parent = None
     select_only(dress)
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    for vertex in dress.data.vertices:
+        vertex.co.z += LIFT
+    dress.data.update()
     return dress
 
 
@@ -171,6 +180,7 @@ def lift_sleeves(dress, rig):
         was_side = direction.cross(was_up)
         now_up = (up - target * up.dot(target)).normalized()
         now_side = target.cross(now_up)
+        turn = direction.rotation_difference(target)
 
         for index in region:
             offset = world[index] - anchor
@@ -182,8 +192,11 @@ def lift_sleeves(dress, rig):
             share = smoothstep(ARMHOLE, SLEEVE_FULL, abs(world[index].x))
             if share <= 0.0:
                 continue
-            rebuilt = (shoulder + target * along
-                       + now_up * across.dot(was_up) + now_side * across.dot(was_side))
+            if SLEEVE_MODE == "rigid":
+                rebuilt = shoulder + turn @ offset
+            else:
+                rebuilt = (shoulder + target * along
+                           + now_up * across.dot(was_up) + now_side * across.dot(was_side))
             dress.data.vertices[index].co = (
                 dress.matrix_world.inverted() @ world[index].lerp(rebuilt, share))
 
