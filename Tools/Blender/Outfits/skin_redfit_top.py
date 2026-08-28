@@ -13,7 +13,7 @@ Nothing is exported; the blend is saved for inspection.
 from pathlib import Path
 
 import bpy
-from mathutils import Quaternion, Vector
+from mathutils import Matrix, Quaternion, Vector
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BLEND_PATH = PROJECT_ROOT / "Tools/Blender/Outfits/xbot_skirt_pants.blend"
@@ -34,11 +34,15 @@ SLEEVE_FULL = 0.28
 ARM_CLEARANCE = 0.06
 AXIS_SPAN = (0.24, 0.44)
 # The garment was cut on a 1.755m avatar; on XBot its shoulder seam lands 9cm below the shoulder.
-LIFT = 0.09
+LIFT = 0.12
 # "hang" keeps the cross section upright against gravity, so the bell still falls downward but
 # fabric under the armhole stays behind as a curtain. "rigid" turns the sleeve whole, which
 # clears the armpit but swings the bell out sideways.
-SLEEVE_MODE = "hang" 
+SLEEVE_MODE = "hang"
+# When the arm rises the armhole takes up the fabric that hung under it, so the cross section is
+# pulled in towards the axis near the shoulder and released to its full bell out at the cuff.
+TUCK_AT_SHOULDER = 0.35
+TUCK_REACH = 0.30 
 OTHER_GARMENTS = ("PufferJacket_ArmsOnly", "Skirt_XBot_Rigged", "PufferPants_XBot_Rigged",
                   "RedFit_Dress_V1_Skinned", "RedFit_Top_XBot_Fitted")
 
@@ -195,8 +199,12 @@ def lift_sleeves(dress, rig):
             if SLEEVE_MODE == "rigid":
                 rebuilt = shoulder + turn @ offset
             else:
+                depth = across.dot(was_up)
+                if depth < 0.0:
+                    depth *= TUCK_AT_SHOULDER + (1.0 - TUCK_AT_SHOULDER) * smoothstep(
+                        0.0, TUCK_REACH, along)
                 rebuilt = (shoulder + target * along
-                           + now_up * across.dot(was_up) + now_side * across.dot(was_side))
+                           + now_up * depth + now_side * across.dot(was_side))
             dress.data.vertices[index].co = (
                 dress.matrix_world.inverted() @ world[index].lerp(rebuilt, share))
 
@@ -233,10 +241,21 @@ def transfer_body_weights(dress, body):
 
 
 def bind_to_rig(dress, rig):
+    """Leaves the mesh in the rig's own space, where the body and the other garments live.
+
+    The wardrobe binds a pre-skinned garment by swapping the body's bind poses onto it and
+    dropping the renderer at the body's origin, so it reads the vertex data and ignores whatever
+    transform the model's own node carried. Exporting the mesh in metres and Z-up, with the
+    conversion parked on that node, would lay the garment on its side once rebound.
+    """
+    dress.data.transform(rig.matrix_world.inverted() @ dress.matrix_world)
+    dress.parent = rig
+    dress.matrix_parent_inverse = Matrix.Identity(4)
+    dress.matrix_basis = Matrix.Identity(4)
+
     armature = dress.modifiers.new("XBot Armature", "ARMATURE")
     armature.object = rig
-    dress.parent = rig
-    dress.matrix_parent_inverse = rig.matrix_world.inverted()
+    bpy.context.view_layer.update()
 
 
 def torso_check(dress, before):
@@ -246,7 +265,7 @@ def torso_check(dress, before):
     worst = 0.0
     for index, vertex in enumerate(dress.data.vertices):
         shift = ((dress.matrix_world @ vertex.co) - before[index]).length
-        if shift == 0.0:
+        if shift < 1e-6:
             untouched += 1
         else:
             moved += 1
@@ -322,9 +341,9 @@ def main():
     weighted = sum(1 for v in dress.data.vertices if any(g.weight > 1e-4 for g in v.groups))
     print(f"[weights] с весами {weighted} из {len(dress.data.vertices)}")
 
+    untouched, moved, worst = torso_check(dress, before)
     bind_to_rig(dress, rig)
 
-    untouched, moved, worst = torso_check(dress, before)
     print(f"[проверка] не сдвинулось ни на микрон: {untouched} вершин")
     print(f"[проверка] сдвинуто {moved}, максимум {worst*1000:.1f} мм")
 
