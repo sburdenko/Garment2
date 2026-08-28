@@ -12,6 +12,7 @@ Nothing is exported; the blend is saved for inspection.
 
 from pathlib import Path
 
+import bmesh
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 
@@ -19,6 +20,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BLEND_PATH = PROJECT_ROOT / "Tools/Blender/Outfits/xbot_skirt_pants.blend"
 SOURCE_FBX = PROJECT_ROOT / "Assets/Garment/Models/RedFitSapphire/Original/RedFit_Top_Original.fbx"
 PREVIEW_DIR = PROJECT_ROOT / "Tools/Blender/Outfits/Previews"
+CLOTH_SPLIT_DIR = PROJECT_ROOT / "Assets/Garment/Models/RedFitSapphire/ClothSplit"
 SKINNED_NAME = "RedFit_Top_Skinned"
 BODY_NAME = "Beta_Surface"
 RIG_NAME = "XBotRig"
@@ -240,6 +242,48 @@ def transfer_body_weights(dress, body):
     bpy.ops.object.modifier_apply(modifier=transfer.name)
 
 
+def export_cloth_split(dress):
+    """The cloth lab hangs the garment with no body under it, and takes it in two pieces.
+
+    Fabric goes to the solver; the embroidery and buttons ride its surface. Both come off the
+    finished garment, before it moves into the rig's space, so the lab sees the same geometry the
+    mannequin wears — in metres, which is what the lab's distances are written in.
+    """
+    pieces = (("RedFit_Top_Fabric", {"RedFit_Fabric"}),
+              ("RedFit_Top_Trim", {"RedFit_Button", "RedFit_Flower", "RedFit_SleevePatch"}))
+    for name, keep in pieces:
+        piece = dress.copy()
+        piece.data = dress.data.copy()
+        piece.name = name
+        piece.data.name = name
+        bpy.context.collection.objects.link(piece)
+
+        mesh = bmesh.new()
+        mesh.from_mesh(piece.data)
+        drop = [f for f in mesh.faces if piece.data.materials[f.material_index].name not in keep]
+        bmesh.ops.delete(mesh, geom=drop, context="FACES_ONLY")
+        mesh.to_mesh(piece.data)
+        mesh.free()
+
+        select_only(piece)
+        bpy.ops.object.material_slot_remove_unused()
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.mesh.delete_loose()
+        bpy.ops.object.mode_set(mode="OBJECT")
+
+        CLOTH_SPLIT_DIR.mkdir(parents=True, exist_ok=True)
+        path = CLOTH_SPLIT_DIR / f"{name}.fbx"
+        bpy.ops.export_scene.fbx(filepath=str(path), use_selection=True, apply_unit_scale=True,
+                                 global_scale=1.0, axis_forward="-Z", axis_up="Y",
+                                 object_types={"MESH"}, mesh_smooth_type="FACE",
+                                 use_mesh_modifiers=True, bake_space_transform=True,
+                                 apply_scale_options="FBX_SCALE_ALL")
+        print(f"[split] {name}: {len(piece.data.vertices)} верш, {len(piece.data.polygons)} тр, "
+              f"слоты {[m.name for m in piece.data.materials]}")
+        bpy.data.objects.remove(piece, do_unlink=True)
+
+
 def bind_to_rig(dress, rig):
     """Leaves the mesh in the rig's own space, where the body and the other garments live.
 
@@ -342,6 +386,7 @@ def main():
     print(f"[weights] с весами {weighted} из {len(dress.data.vertices)}")
 
     untouched, moved, worst = torso_check(dress, before)
+    export_cloth_split(dress)
     bind_to_rig(dress, rig)
 
     print(f"[проверка] не сдвинулось ни на микрон: {untouched} вершин")
